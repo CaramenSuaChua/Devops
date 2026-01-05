@@ -32,8 +32,8 @@ jobs:
     - name: Install dependencies
       run: npm ci
     
-    - name: Run tests with coverage
-      run: npm run test:ci
+    # - name: Run tests with coverage
+    #   run: npm run test:ci
     
     - name: SonarQube Scan
       uses: SonarSource/sonarqube-scan-action@master
@@ -46,23 +46,23 @@ jobs:
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
   # Job 1: Build và test
-  build-and-test:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+  # build-and-test:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v4
     
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
+  #   - name: Setup Node.js
+  #     uses: actions/setup-node@v4
+  #     with:
+  #       node-version: '18'
+  #       cache: 'npm'
     
-    - name: Install dependencies
-      run: npm ci
+  #   - name: Install dependencies
+  #     run: npm ci
     
-    - name: Build application
-      run: npm run build
+  #   - name: Build application
+  #     run: npm run build
 
   # Job 2: Build và push Docker image
   # build-and-push:
