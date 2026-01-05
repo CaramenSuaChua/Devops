@@ -96,8 +96,7 @@ jobs:
         context: .
         push: true
         tags: |
-          ${{ secrets.DOCKER_REPO }}:${{ steps.tag.outputs.tag }}
-          ${{ secrets.DOCKER_REPO }}:latest
+          ${{ secrets.DOCKER_REPO }}:v${{ steps.pr-number.outputs.PR_NUMBER }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
