@@ -62,6 +62,25 @@ jobs:
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Get PR number from commit message
+      id: pr-number
+      run: |
+        # Lấy PR number từ commit message (khi merge với squash/sử dụng conventional commits)
+        PR_NUMBER=$(git log -1 --pretty=%B | grep -o '#[0-9]*' | head -1 | tr -d '#' || echo "")
+        
+        if [ -z "$PR_NUMBER" ]; then
+          # Hoặc tìm trong merge commit
+          PR_NUMBER=$(git log -1 --pretty=%B | grep -o 'Merge pull request #[0-9]*' | grep -o '[0-9]*' || echo "")
+        fi
+        
+        if [ -z "$PR_NUMBER" ]; then
+          # Fallback: dùng commit SHA
+          PR_NUMBER="sha-$(echo ${{ github.sha }} | cut -c1-7)"
+        fi
+        
+        echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_OUTPUT
+        echo "PR number: $PR_NUMBER"
     
     - name: Generate Docker tag
       id: tag
