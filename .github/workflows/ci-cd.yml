@@ -53,17 +53,17 @@ jobs:
         curl -s -H "Authorization: Bearer ${{ secrets.SONAR_TOKEN }}" \
           "${{ secrets.SONAR_HOST_URL }}/api/system/status" | jq '.status,.version' || echo "Token authentication failed"
     
-    # - name: Install dependencies
-    #   run: npm ci
+    - name: Install dependencies
+      run: npm ci
   
-    # - name: Run tests with coverage
-    #   run: npm run test:ci
+    - name: Run tests with coverage
+      run: npm run test:ci
     
-    # - name: SonarQube Scan
-    #   uses: SonarSource/sonarqube-scan-action@main
-    #   env:
-    #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-    #     SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+    - name: SonarQube Scan
+      uses: SonarSource/sonarqube-scan-action@main
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
     
     # - name: Check Quality Gate
     #   uses: SonarSource/sonarqube-quality-gate-action@main
