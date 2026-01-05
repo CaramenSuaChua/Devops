@@ -31,7 +31,7 @@ jobs:
 
     - name: Test SonarQube Connection
       run: |
-        echo "Testing connection to SonarQube.113423211.."
+        echo "Testing connection to SonarQube.1134232211.."
         
         # Test 1: Basic connectivity
         echo "1. Testing basic connectivity..."
