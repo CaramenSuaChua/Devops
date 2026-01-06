@@ -29,32 +29,32 @@ jobs:
         path: node_modules
         key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
 
-    - name: Test SonarQube Connection
-      run: |
-        echo "Testing connection to SonarQube.113423223121.."
+    # - name: Test SonarQube Connection
+    #   run: |
+    #     echo "Testing connection to SonarQube.113423223121.."
         
-        # Test 1: Basic connectivity
-        echo "1. Testing basic connectivity..."
-        if curl -s -o /dev/null -w "%{http_code}" "${{ secrets.SONAR_HOST_URL }}/api/system/status" | grep -q "200"; then
-          echo "✅ SonarQube is reachable"
-        else
-          echo "❌ Cannot reach SonarQube at ${{ secrets.SONAR_HOST_URL }}"
-          echo "Trying with verbose output..."
-          curl -v "${{ secrets.SONAR_HOST_URL }}" || true
-          exit 1
-        fi
+    #     # Test 1: Basic connectivity
+    #     echo "1. Testing basic connectivity..."
+    #     if curl -s -o /dev/null -w "%{http_code}" "${{ secrets.SONAR_HOST_URL }}/api/system/status" | grep -q "200"; then
+    #       echo "✅ SonarQube is reachable"
+    #     else
+    #       echo "❌ Cannot reach SonarQube at ${{ secrets.SONAR_HOST_URL }}"
+    #       echo "Trying with verbose output..."
+    #       curl -v "${{ secrets.SONAR_HOST_URL }}" || true
+    #       exit 1
+    #     fi
         
-        # Test 2: API version endpoint
-        echo "2. Testing API version endpoint..."
-        curl -s "${{ secrets.SONAR_HOST_URL }}/api/server/version" && echo ""
+    #     # Test 2: API version endpoint
+    #     echo "2. Testing API version endpoint..."
+    #     curl -s "${{ secrets.SONAR_HOST_URL }}/api/server/version" && echo ""
         
-        # Test 3: With token
-        echo "3. Testing with authentication token..."
-        curl -s -H "Authorization: Bearer ${{ secrets.SONAR_TOKEN }}" \
-          "${{ secrets.SONAR_HOST_URL }}/api/system/status" | jq '.status,.version' || echo "Token authentication failed"
+    #     # Test 3: With token
+    #     echo "3. Testing with authentication token..."
+    #     curl -s -H "Authorization: Bearer ${{ secrets.SONAR_TOKEN }}" \
+    #       "${{ secrets.SONAR_HOST_URL }}/api/system/status" | jq '.status,.version' || echo "Token authentication failed"
     
-    - name: Install dependencies
-      run: npm ci
+    # - name: Install dependencies
+    #   run: npm ci
   
     # - name: Run tests with coverage
     #   run: npm run test:ci
