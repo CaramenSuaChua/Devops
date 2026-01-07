@@ -3,6 +3,13 @@ language: "vi"
 
 reviews:
   enabled: true
+
+  instructions: |
+    All code must follow these principles:
+    - Variable names must be meaningful.
+    - Avoid abbreviations unless they are industry standard.
+    - Temporary variable names like tmp, val, data are not allowed.
+    - Prefer clarity over brevity
   
   # Cấu hình tự động review
   auto_review:
