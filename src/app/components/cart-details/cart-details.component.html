@@ -2,75 +2,110 @@
   <div class="section-content section-content-p30">
     <div class="container-fluid">
 
+      <!-- Cart with items -->
       <div *ngIf="cartItems.length > 0">
-
-      <table class="table table-bordered">
-        <tr>
-          <th width="20%">Product Image</th>
-          <th width="50%">Product Detail</th>
-          <th width="30%"></th>
-        </tr>
-
-        <tr *ngFor="let tempCartItem of cartItems">
-          <td>
-            <img src="{{ tempCartItem.imageUrl }}" class="img-responsive" width="150px" />
-          </td>
-          <td>
-            <p>{{ tempCartItem.name }}</p>
-            <p>{{ tempCartItem.unitPrice | currency: 'USD' }}</p>
-          </td>
-          <td>
-            <div class="items">
-              <label>Quantity:</label>
-
-              <div class="row no-gutters">
-                <div class="col">
-                  <button (click)="decrementQuantity(tempCartItem)" class="btn btn-primary btn-sm">
-                    <i class="fas fa-minus"></i>
-                  </button>
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <th width="20%">Product Image</th>
+              <th width="50%">Product Details</th>
+              <th width="30%">Actions</th>
+            </tr>
+          </thead>
+          
+          <tbody>
+            <tr *ngFor="let cartItem of cartItems; trackBy: trackByCartItem">
+              <td>
+                <img 
+                  [src]="cartItem.imageUrl" 
+                  [alt]="cartItem.name"
+                  class="img-responsive" 
+                  width="150" 
+                />
+              </td>
+              
+              <td>
+                <p class="product-name">{{ cartItem.name }}</p>
+                <p class="product-price">{{ cartItem.unitPrice | currency: 'USD' }}</p>
+              </td>
+              
+              <td>
+                <div class="cart-item-actions">
+                  <div class="quantity-control">
+                    <label class="quantity-label">Quantity:</label>
+                    
+                    <div class="row no-gutters align-items-center">
+                      <div class="col-auto">
+                        <button 
+                          (click)="decrementQuantity(cartItem)" 
+                          class="btn btn-primary btn-sm"
+                          aria-label="Decrease quantity"
+                          [disabled]="cartItem.quantity <= 1"
+                        >
+                          <i class="fas fa-minus"></i>
+                        </button>
+                      </div>
+                      
+                      <div class="col-auto mx-3">
+                        <span class="quantity-value">{{ cartItem.quantity }}</span>
+                      </div>
+                      
+                      <div class="col-auto">
+                        <button 
+                          (click)="incrementQuantity(cartItem)" 
+                          class="btn btn-primary btn-sm"
+                          aria-label="Increase quantity"
+                        >
+                          <i class="fas fa-plus"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="mt-2">
+                    <button 
+                      (click)="remove(cartItem)" 
+                      class="btn btn-outline-danger btn-sm"
+                      aria-label="Remove item from cart"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  
+                  <p class="subtotal mt-2">
+                    Subtotal: {{ cartItem.quantity * cartItem.unitPrice | currency: 'USD' }}
+                  </p>
                 </div>
-
-                <div class="col ml-4 mr-2">
-                  {{tempCartItem.quantity}}
+              </td>
+            </tr>
+          </tbody>
+          
+          <tfoot>
+            <tr>
+              <td colspan="2"></td>
+              <td class="cart-summary">
+                <p><strong>Total Quantity:</strong> {{ totalQuantity }}</p>
+                <p><strong>Shipping:</strong> FREE</p>
+                <p class="total-price"><strong>Total Price:</strong> {{ totalPrice | currency: 'USD' }}</p>
+                
+                <div class="checkout-action mt-3">
+                  <a routerLink="/checkout" class="btn btn-success btn-block">
+                    Proceed to Checkout
+                  </a>
                 </div>
-
-                <div class="col">
-                  <button (click)="incrementQuantity(tempCartItem)" class="btn btn-primary btn-sm">
-                    <i class="fas fa-plus"></i>
-                  </button>
-                </div>
-
-                <div class="col-8"></div>
-
-              </div>
-              <button (click)="remove(tempCartItem)" class="btn btn-primary btn-sm mt-2">Remove</button>
-
-            </div>
-
-            <p class="mt-2">Subtotal: {{ tempCartItem.quantity * tempCartItem.unitPrice | currency: 'USD' }}</p>
-          </td>
-        </tr>
-
-        <tr>
-          <td colspan="2"></td>
-          <td style="font-weight: bold">
-            <p>Total Quantity: {{ totalQuantity }}</p>
-            <p>Shipping: FREE</p>
-            <p>Total Price: {{ totalPrice | currency: 'USD' }}</p>
-            <div>
-            <a routerLink="/checkout" class="btn btn-primary">Checkout</a>
-            </div>
-          </td>
-
-        </tr>
-
-      </table>
-
+              </td>
+            </tr>
+          </tfoot>
+        </table>
       </div>
 
-      <!-- if cart is empty display message -->
-      <div *ngIf="cartItems.length==0" class="alert alert-warning col-md-12" role="alert">
-      Your shopping cart is empty </div>
+      <!-- Empty cart message -->
+      <div *ngIf="cartItems.length === 0" class="alert alert-warning text-center" role="alert">
+        <i class="fas fa-shopping-cart fa-lg mb-3"></i>
+        <h4 class="alert-heading">Your cart is empty</h4>
+        <p class="mb-0">Add some products to get started!</p>
+        <a routerLink="/products" class="btn btn-primary mt-3">Continue Shopping</a>
+      </div>
 
     </div>
   </div>
