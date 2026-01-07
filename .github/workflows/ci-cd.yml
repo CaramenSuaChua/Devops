@@ -13,57 +13,57 @@ env:
 
 jobs:
   # PR: SonarQube Analysis + Quality Gate
-  analyze:
-    name: SonarQube Analysis
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+  # analyze:
+  #   name: SonarQube Analysis
+  #   runs-on: ubuntu-latest
+  #   if: github.event_name == 'pull_request'
     
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #     with:
+  #       fetch-depth: 0
     
-    - name: Cache node modules
-      uses: actions/cache@v3
-      with:
-        path: node_modules
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+  #   - name: Cache node modules
+  #     uses: actions/cache@v3
+  #     with:
+  #       path: node_modules
+  #       key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
 
-    - name: Test SonarQube Connection
-      run: |
-        echo "Testing connection to SonarQube.113423322312211.."
+    # - name: Test SonarQube Connection
+    #   run: |
+    #     echo "Testing connection to SonarQube.113423322312211.."
         
-        # Test 1: Basic connectivity
-        echo "1. Testing basic connectivity..."
-        if curl -s -o /dev/null -w "%{http_code}" "${{ secrets.SONAR_HOST_URL }}/api/system/status" | grep -q "200"; then
-          echo "✅ SonarQube is reachable"
-        else
-          echo "❌ Cannot reach SonarQube at ${{ secrets.SONAR_HOST_URL }}"
-          echo "Trying with verbose output..."
-          curl -v "${{ secrets.SONAR_HOST_URL }}" || true
-          exit 1
-        fi
+    #     # Test 1: Basic connectivity
+    #     echo "1. Testing basic connectivity..."
+    #     if curl -s -o /dev/null -w "%{http_code}" "${{ secrets.SONAR_HOST_URL }}/api/system/status" | grep -q "200"; then
+    #       echo "✅ SonarQube is reachable"
+    #     else
+    #       echo "❌ Cannot reach SonarQube at ${{ secrets.SONAR_HOST_URL }}"
+    #       echo "Trying with verbose output..."
+    #       curl -v "${{ secrets.SONAR_HOST_URL }}" || true
+    #       exit 1
+    #     fi
         
-        # Test 2: API version endpoint
-        echo "2. Testing API version endpoint..."
-        curl -s "${{ secrets.SONAR_HOST_URL }}/api/server/version" && echo ""
+    #     # Test 2: API version endpoint
+    #     echo "2. Testing API version endpoint..."
+    #     curl -s "${{ secrets.SONAR_HOST_URL }}/api/server/version" && echo ""
         
-        # Test 3: With token
-        echo "3. Testing with authentication token..."
-        curl -s -H "Authorization: Bearer ${{ secrets.SONAR_TOKEN }}" \
-          "${{ secrets.SONAR_HOST_URL }}/api/system/status" | jq '.status,.version' || echo "Token authentication failed"
+    #     # Test 3: With token
+    #     echo "3. Testing with authentication token..."
+    #     curl -s -H "Authorization: Bearer ${{ secrets.SONAR_TOKEN }}" \
+    #       "${{ secrets.SONAR_HOST_URL }}/api/system/status" | jq '.status,.version' || echo "Token authentication failed"
     
-    - name: Install dependencies
-      run: npm ci
+    # - name: Install dependencies
+    #   run: npm ci
   
     # - name: Run tests with coverage
     #   run: npm run test:ci
     
-    - name: SonarQube Scan
-      uses: SonarSource/sonarqube-scan-action@master
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+    # - name: SonarQube Scan
+    #   uses: SonarSource/sonarqube-scan-action@master
+    #   env:
+    #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    #     SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
     
     # - name: Check Quality Gate
     #   uses: SonarSource/sonarqube-quality-gate-action@main

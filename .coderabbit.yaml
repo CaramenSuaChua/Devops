@@ -1,0 +1,25 @@
+# .coderabbit.yaml nâng cao
+language: "vi"
+
+reviews:
+  enabled: true
+  auto_review:
+    enabled: true
+    threshold: "medium"  # low, medium, high
+  path_filters:
+    - "src/**/*"
+    - "*.js"
+    - "*.ts"
+    - "*.py"
+    - "!node_modules/**"
+    - "!dist/**"
+
+summaries:
+  enabled: true
+  detail_level: "concise"  # concise, detailed
+
+changelog:
+  enabled: true
+  
+chat:
+  enabled: true  # Cho phép chat với AI về code
