@@ -143,34 +143,34 @@ summaries:
       test_coverage: 15
       documentation: 10
 
-changelog:
-  enabled: true
-  detail_level: "detailed"
+# changelog:
+#   enabled: true
+#   detail_level: "detailed"
   
 chat:
   enabled: true
   strict_mode: true  # Mode nghiêm ngặt cho chat
   
 # Custom rules cho từng ngôn ngữ
-languages:
-  javascript:
-    rules:
-      no_var: true  # Chỉ cho phép let/const
-      prefer_const: true  # Ưu tiên const
-      no_console: true  # Không cho phép console.*
-      no_alert: true  # Không cho phép alert/confirm
+# languages:
+#   javascript:
+#     rules:
+#       no_var: true  # Chỉ cho phép let/const
+#       prefer_const: true  # Ưu tiên const
+#       no_console: true  # Không cho phép console.*
+#       no_alert: true  # Không cho phép alert/confirm
       
-  typescript:
-    rules:
-      strict_type_checking: true
-      no_any: true  # Không cho phép sử dụng `any`
-      explicit_return_types: true  # Yêu cầu khai báo return type
+#   typescript:
+#     rules:
+#       strict_type_checking: true
+#       no_any: true  # Không cho phép sử dụng `any`
+#       explicit_return_types: true  # Yêu cầu khai báo return type
       
-  python:
-    rules:
-      type_hints_required: true  # Bắt buộc type hints
-      docstring_required: true  # Yêu cầu docstring
-      max_line_length: 88  # Theo black formatter
+#   python:
+#     rules:
+#       type_hints_required: true  # Bắt buộc type hints
+#       docstring_required: true  # Yêu cầu docstring
+#       max_line_length: 88  # Theo black formatter
       
   # java:
   #   rules:
@@ -178,32 +178,32 @@ languages:
   #     interface_over_implementation: true
       
 # Workflow integration
-workflow:
-  # Chạy review trên các events
-  on:
-    pull_request:
-      types: [opened, synchronize, reopened]
-    push:
-      branches: [main]
+# workflow:
+#   # Chạy review trên các events
+#   on:
+#     pull_request:
+#       types: [opened, synchronize, reopened]
+#     push:
+#       branches: [main]
       
-  # Timeouts và retry
-  timeout_minutes: 30
-  max_retries: 1
+#   # Timeouts và retry
+#   timeout_minutes: 30
+#   max_retries: 1
   
 # Notifications (tuỳ chọn)
-notifications:
-  slack:
-    enabled: false
-    channel: "#code-reviews"
-  teams:
-    enabled: false
-  webhook:
-    enabled: false
+# notifications:
+#   slack:
+#     enabled: false
+#     channel: "#code-reviews"
+#   teams:
+#     enabled: false
+#   webhook:
+#     enabled: false
     
 # Export kết quả
-exports:
-  enabled: true
-  formats:
-    - json
-    - html
-  destination: "./coderabbit-reports/"
+# exports:
+#   enabled: true
+#   formats:
+#     - json
+#     - html
+#   destination: "./coderabbit-reports/"
