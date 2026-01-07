@@ -1,25 +1,209 @@
-# .coderabbit.yaml nâng cao
+# .coderabbit.yaml - Cấu hình review khắt khe
 language: "vi"
 
 reviews:
   enabled: true
+  
+  # Cấu hình tự động review
   auto_review:
     enabled: true
-    threshold: "medium"  # low, medium, high
+    threshold: "high"  # Chỉ review high và critical issues
+    
+  # Độ chi tiết review
+  depth: "comprehensive"  # comprehensive, standard, concise
+  
+  # Phân tích chi tiết
+  analysis:
+    security: true
+    performance: true
+    best_practices: true
+    code_smells: true
+    complexity: true
+    duplication: true
+    maintainability: true
+    
+  # Tiêu chuẩn chất lượng nghiêm ngặt
+  quality_gate:
+    enabled: true
+    rules:
+      # Các rule chất lượng
+      max_complexity: 10  # Độ phức tạp cyclomatic tối đa
+      min_test_coverage: 80  # Tối thiểu 80% test coverage
+      max_duplication: 5  # Tối đa 5% code trùng lặp
+      max_smells: 20  # Tối đa 20 code smells
+      min_maintainability: 60  # Điểm maintainability tối thiểu
+    
+  # Path filters - Review tất cả file source
   path_filters:
     - "src/**/*"
+    - "lib/**/*"
+    - "app/**/*"
     - "*.js"
+    - "*.jsx"
     - "*.ts"
+    - "*.tsx"
     - "*.py"
+    - "*.java"
+    - "*.cpp"
+    - "*.c"
+    - "*.go"
+    - "*.rs"
+    - "*.php"
+    - "*.rb"
+    - "*.swift"
+    - "*.kt"
     - "!node_modules/**"
     - "!dist/**"
-
+    - "!build/**"
+    - "!*.min.js"
+    - "!*.min.css"
+    - "!vendor/**"
+    - "!__pycache__/**"
+  
+  # File types cụ thể
+  file_types:
+    source_code: true
+    configuration: true
+    documentation: false  # Không review docs
+    test_files: true  # Review cả test files
+    
+  # Cài đặt strict mode
+  strict:
+    enabled: true
+    rules:
+      # Bắt buộc các tiêu chuẩn
+      require_comments: true  # Yêu cầu comment cho complex code
+      require_tests: true  # Yêu cầu test cho new features
+      no_debug_code: true  # Không cho phép debug code trong PR
+      no_todo: true  # Cảnh báo TODO/FIXME comments
+      no_hardcoded_secrets: true  # Check hardcoded secrets
+      
+  # Security scanning nâng cao
+  security:
+    enabled: true
+    level: "strict"
+    checks:
+      - sql_injection
+      - xss
+      - csrf
+      - path_traversal
+      - command_injection
+      - insecure_dependencies
+      - secret_leakage
+      
+  # Performance analysis
+  performance:
+    enabled: true
+    checks:
+      - n_plus_one_queries
+      - memory_leaks
+      - inefficient_algorithms
+      - large_file_size
+      - too_many_imports
+      
+  # Chi tiết comments
+  comments:
+    style: "detailed"  # detailed, concise
+    include_examples: true  # Bao gồm code examples
+    include_fixes: true  # Gợi ý fix cụ thể
+    maximum_comments: 50  # Giới hạn số comments
+    
+  # Pull request checks
+  pull_request:
+    require_all_checks: true  # Yêu cầu tất cả checks pass
+    blocking_issues: true  # Có thể block PR nếu có critical issues
+    minimum_approvals: 1  # Yêu cầu ít nhất 1 approval từ AI
+    
+  # Tự động request changes cho issues quan trọng
+  auto_request_changes:
+    enabled: true
+    for_severities: ["critical", "high"]
+    
 summaries:
   enabled: true
-  detail_level: "concise"  # concise, detailed
+  detail_level: "detailed"  # Báo cáo chi tiết
+  
+  # Nội dung summary
+  include:
+    - security_issues
+    - performance_issues
+    - code_smells
+    - complexity_analysis
+    - test_coverage
+    - duplication_report
+    - overall_grade
+    
+  # Điểm số đánh giá
+  scoring:
+    enabled: true
+    weights:
+      security: 30
+      performance: 20
+      maintainability: 25
+      test_coverage: 15
+      documentation: 10
 
 changelog:
   enabled: true
+  detail_level: "detailed"
   
 chat:
-  enabled: true  # Cho phép chat với AI về code
+  enabled: true
+  strict_mode: true  # Mode nghiêm ngặt cho chat
+  
+# Custom rules cho từng ngôn ngữ
+languages:
+  javascript:
+    rules:
+      no_var: true  # Chỉ cho phép let/const
+      prefer_const: true  # Ưu tiên const
+      no_console: true  # Không cho phép console.*
+      no_alert: true  # Không cho phép alert/confirm
+      
+  typescript:
+    rules:
+      strict_type_checking: true
+      no_any: true  # Không cho phép sử dụng `any`
+      explicit_return_types: true  # Yêu cầu khai báo return type
+      
+  python:
+    rules:
+      type_hints_required: true  # Bắt buộc type hints
+      docstring_required: true  # Yêu cầu docstring
+      max_line_length: 88  # Theo black formatter
+      
+  # java:
+  #   rules:
+  #     final_variables: true  # Ưu tiên final variables
+  #     interface_over_implementation: true
+      
+# Workflow integration
+workflow:
+  # Chạy review trên các events
+  on:
+    pull_request:
+      types: [opened, synchronize, reopened]
+    push:
+      branches: [main]
+      
+  # Timeouts và retry
+  timeout_minutes: 30
+  max_retries: 1
+  
+# Notifications (tuỳ chọn)
+notifications:
+  slack:
+    enabled: false
+    channel: "#code-reviews"
+  teams:
+    enabled: false
+  webhook:
+    enabled: false
+    
+# Export kết quả
+exports:
+  enabled: true
+  formats:
+    - json
+    - html
+  destination: "./coderabbit-reports/"
