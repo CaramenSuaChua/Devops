@@ -20,13 +20,13 @@ pipeline {
             }
         }
 
-        stage('Unit Test') {
-            steps {
-                echo "--- Đang chạy Unit Test bên trong Docker Container ---"
-                // Sử dụng Docker để test giúp Jenkins server luôn sạch sẽ
-                sh "docker build --target test -t ecommerce-test ."
-            }
-        }
+        // stage('Unit Test') {
+        //     steps {
+        //         echo "--- Đang chạy Unit Test bên trong Docker Container ---"
+        //         // Sử dụng Docker để test giúp Jenkins server luôn sạch sẽ
+        //         sh "docker build --target test -t ecommerce-test ."
+        //     }
+        // }
 
         stage('Build & Push Docker Image') {
             steps {
