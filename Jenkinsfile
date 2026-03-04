@@ -80,7 +80,7 @@ pipeline {
                             sh "git config user.name 'CaramenSuaChua'"
                             sh "git add ."
                             sh "git commit -m 'Update image to ${env.VERSION} [skip ci]'"
-                            sh "git push origin main"
+                            sh "git push https://${GIT_USER}:${GIT_PWD}@github.com/CaramenSuaChua/ecommerce-gitops.git HEAD:main"
                         }
                     }
                 }
