@@ -47,7 +47,6 @@ pipeline {
 
                         echo "--- Pushing Tags ---"
                         sh "docker push ${vTag}"
-                        sh "docker push ${latestTag}"
 
                         sh "docker logout"
                     }
