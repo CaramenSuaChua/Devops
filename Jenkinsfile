@@ -61,6 +61,30 @@ pipeline {
                 }
             }
         }
+
+        stage('Update GitOps Manifest') {
+            steps {
+                script {
+                    // Clone repo manifest về một thư mục tạm
+                    sh "rm -rf ecommerce-gitops"
+                    withCredentials([usernamePassword(credentialsId: 'github-token', passwordVariable: 'GIT_PWD', usernameVariable: 'GIT_USER')]) {
+                        sh "git clone https://${GIT_USER}:${GIT_PWD}@github.com/CaramenSuaChua/ecommerce-gitops.git"
+                        
+                        dir('ecommerce-gitops') {
+                            // Sử dụng lệnh sed để thay thế tag image cũ bằng tag version mới (v${BUILD_NUMBER})
+                            sh "sed -i 's|image: caramensuachua/ecommerce-frontend:.*|image: caramensuachua/ecommerce-frontend:${env.VERSION}|g' deployment.yaml"
+                            
+                            // Commit và push thay đổi lên repo GitOps
+                            sh "git config user.email 'ngodungvb0304@gmail.com'"
+                            sh "git config user.name 'CaramenSuaChua'"
+                            sh "git add ."
+                            sh "git commit -m 'Update image to ${env.VERSION} [skip ci]'"
+                            sh "git push origin main"
+                        }
+                    }
+                }
+            }
+        }
     }
 
     post {
