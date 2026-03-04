@@ -19,6 +19,7 @@ export class OrderHistoryComponent implements OnInit{
 
   ngOnInit() {
     this.handleOrderHistory();
+    this.testai()
   }
 
   handleOrderHistory(){
