@@ -5,7 +5,6 @@ pipeline {
         DOCKER_REGISTRY = "caramensuachua"
         IMAGE_NAME = "ecommerce-frontend"
         DOCKER_HUB_CREDS = "docker-hub-creds"
-        // Tạo biến Version khớp với số Build (ví dụ: v49)
         VERSION = "v${env.BUILD_NUMBER}"
     }
 
@@ -16,28 +15,41 @@ pipeline {
                 script {
                     def branchName = env.GIT_BRANCH ?: 'main'
                     env.ACTUAL_BRANCH = branchName.replace('origin/', '')
+                    echo "${env.ACTUAL_BRANCH}"
                 }
             }
         }
 
-        stage('Build & Push Fast') {
+        stage('Build & Push Docker Image') {
             steps {
                 script {
-                    def fullTag = "${DOCKER_REGISTRY}/${IMAGE_NAME}:${env.ACTUAL_BRANCH}-${VERSION}"
-                    
-                    withCredentials([usernamePassword(credentialsId: "${DOCKER_HUB_CREDS}", passwordVariable: 'PWD', usernameVariable: 'USER')]) {
-                        sh "echo \$PWD | docker login -u \$USER --password-stdin"
+                    def repo = "${env.DOCKER_REGISTRY}/${env.IMAGE_NAME}"
+                    def vTag = "${repo}:${env.VERSION}"
+                    def latestTag = "${repo}:latest"
+
+                    withCredentials([usernamePassword(credentialsId: "${env.DOCKER_HUB_CREDS}", passwordVariable: 'DOCKER_PWD', usernameVariable: 'DOCKER_USER')]) {
                         
-                        // Sử dụng Buildx với cache nội bộ (inline cache)
-                        // Nếu layer npm install không đổi, nó sẽ bỏ qua trong 1 giây
+                        // Login một lần duy nhất
+                        sh "echo \$DOCKER_PWD | docker login -u \$DOCKER_USER --password-stdin"
+                        
+                        // Kéo bản latest về làm mốc so sánh cache (Docker sẽ so sánh các layer cũ)
+                        echo "--- Pulling latest image for caching ---"
+                        sh "docker pull ${latestTag} || true"
+
+                        echo "--- Building Image version: ${env.VERSION} ---"
+                        // TỐI ƯU: Sử dụng --cache-from để không phải chạy lại npm install nếu không có thư viện mới
                         sh """
-                            docker buildx build \
-                            --cache-from type=registry,ref=${DOCKER_REGISTRY}/${IMAGE_NAME}:cache \
-                            --cache-to type=registry,ref=${DOCKER_REGISTRY}/${IMAGE_NAME}:cache,mode=max \
-                            -t ${fullTag} \
-                            -t ${DOCKER_REGISTRY}/${IMAGE_NAME}:${VERSION} \
-                            --push .
+                            docker build \
+                            --cache-from ${latestTag} \
+                            -t ${vTag} \
+                            -t ${latestTag} .
                         """
+
+                        echo "--- Pushing Tags ---"
+                        sh "docker push ${vTag}"
+                        sh "docker push ${latestTag}"
+
+                        sh "docker logout"
                     }
                 }
             }
