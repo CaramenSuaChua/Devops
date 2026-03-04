@@ -3,7 +3,8 @@ pipeline {
     
     environment {
         // Tự động lấy tên branch từ Webhook, nếu không có thì mặc định là main
-        BRANCH = "${env.BRANCH_NAME ?: 'main'}"
+        RAW_BRANCH = "${env.GIT_BRANCH ?: 'main'}"
+        BRANCH = "${RAW_BRANCH.split('/').last()}"
         DOCKER_IMAGE = 'caramensuachua/ecommerce-frontend'
         VERSION = "v${env.BUILD_NUMBER}"
     }
