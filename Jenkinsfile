@@ -5,8 +5,6 @@ pipeline {
         DOCKER_REGISTRY = "caramensuachua"
         IMAGE_NAME = "ecommerce-frontend"
         DOCKER_HUB_CREDS = "docker-hub-creds"
-        // Tạo biến VERSION để dùng thống nhất trong toàn bộ Pipeline
-        VERSION = "${env.BUILD_NUMBER}" 
     }
 
     stages {
@@ -31,25 +29,27 @@ pipeline {
             steps {
                 echo "--- Đang Build và Push Image lên Docker Hub ---"
                 
-                withCredentials([usernamePassword(credentialsId: "${env.DOCKER_HUB_CREDS}", passwordVariable: 'DOCKER_PWD', usernameVariable: 'DOCKER_USER')]) {
-                    
-                    // 1. Khai báo biến tag đầy đủ để tránh sai sót
-                    def fullImageTag = "${DOCKER_REGISTRY}/${IMAGE_NAME}:${env.ACTUAL_BRANCH}-${VERSION}"
-                    def latestTag = "${DOCKER_REGISTRY}/${IMAGE_NAME}:latest"
+                // Sử dụng script block để có thể khai báo biến def
+                script {
+                    def fullImageTag = "${env.DOCKER_REGISTRY}/${env.IMAGE_NAME}:${env.ACTUAL_BRANCH}-${env.BUILD_NUMBER}"
+                    def latestTag = "${env.DOCKER_REGISTRY}/${env.IMAGE_NAME}:latest"
 
-                    // 2. Build Image
-                    sh "docker build -t ${fullImageTag} ."
-                    sh "docker tag ${fullImageTag} ${latestTag}"
+                    withCredentials([usernamePassword(credentialsId: "${env.DOCKER_HUB_CREDS}", passwordVariable: 'DOCKER_PWD', usernameVariable: 'DOCKER_USER')]) {
+                        
+                        // 1. Build Image
+                        sh "docker build -t ${fullImageTag} ."
+                        sh "docker tag ${fullImageTag} ${latestTag}"
 
-                    // 3. Login
-                    sh "echo \$DOCKER_PWD | docker login -u \$DOCKER_USER --password-stdin"
+                        // 2. Login (Sử dụng dấu \ trước biến môi trường Shell)
+                        sh "echo \$DOCKER_PWD | docker login -u \$DOCKER_USER --password-stdin"
 
-                    // 4. Push
-                    sh "docker push ${fullImageTag}"
-                    sh "docker push ${latestTag}"
+                        // 3. Push
+                        sh "docker push ${fullImageTag}"
+                        sh "docker push ${latestTag}"
 
-                    // 5. Logout ngay lập tức để bảo mật
-                    sh "docker logout"
+                        // 4. Logout
+                        sh "docker logout"
+                    }
                 }
             }
         }
@@ -57,9 +57,7 @@ pipeline {
 
     post {
         success {
-            echo "-----------------------------------------------------------"
-            echo "Thành công! Image đã đẩy lên: ${DOCKER_REGISTRY}/${IMAGE_NAME}:${env.ACTUAL_BRANCH}-${VERSION}"
-            echo "-----------------------------------------------------------"
+            echo "--- Thành công! ---"
         }
         failure {
             sh "docker logout || true"
