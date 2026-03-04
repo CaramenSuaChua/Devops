@@ -16,7 +16,7 @@ pipeline {
                 echo "--- Testing Connectivity ---"
                 echo "Successfully triggered by Webhook!"
                 echo "Running on branch: ${env.BRANCH}"
-                echo "Build Version1111111111111: ${env.VERSION}"
+                echo "Build Version1111111111111: ${env.GIT_BRANCH}"
                 echo "Build Version: ${env.VERSION}"
             }
         }
