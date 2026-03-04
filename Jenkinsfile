@@ -72,7 +72,8 @@ pipeline {
                         
                         dir('ecommerce-gitops') {
                             // Sử dụng lệnh sed để thay thế tag image cũ bằng tag version mới (v${BUILD_NUMBER})
-                            sh "sed -i 's|image: caramensuachua/ecommerce-frontend:.*|image: caramensuachua/ecommerce-frontend:${env.VERSION}|g' deployment.yaml"
+                            // Sửa lại dòng này cho đúng tên file trong repo GitOps của bạn
+                            sh "sed -i 's|image: caramensuachua/ecommerce-frontend:.*|image: caramensuachua/ecommerce-frontend:${env.VERSION}|g' deployment-fe.yaml"
                             
                             // Commit và push thay đổi lên repo GitOps
                             sh "git config user.email 'ngodungvb0304@gmail.com'"
