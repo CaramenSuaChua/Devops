@@ -63,29 +63,37 @@ pipeline {
         // }
 
         stage('Update GitOps Manifest') {
-            steps {
-                script {
-                    // Clone repo manifest về một thư mục tạm
-                    sh "rm -rf ecommerce-gitops"
-                    withCredentials([usernamePassword(credentialsId: 'github-token', passwordVariable: 'GIT_PWD', usernameVariable: 'GIT_USER')]) {
-                        sh "git clone https://${GIT_USER}:${GIT_PWD}@github.com/CaramenSuaChua/ecommerce-gitops.git"
-                        
-                        dir('ecommerce-gitops') {
-                            // Sử dụng lệnh sed để thay thế tag image cũ bằng tag version mới (v${BUILD_NUMBER})
-                            // Sửa lại dòng này cho đúng tên file trong repo GitOps của bạn
-                            sh "sed -i 's|image: caramensuachua/ecommerce-frontend:.*|image: caramensuachua/ecommerce-frontend:${env.VERSION}|g' deployment-fe.yaml"
-                            
-                            // Commit và push thay đổi lên repo GitOps
-                            sh "git config user.email 'ngodungvb0304@gmail.com'"
-                            sh "git config user.name 'CaramenSuaChua'"
-                            sh "git add ."
-                            sh "git commit -m 'Update image to ${env.VERSION} [skip ci]'"
-                            sh "git push https://${GIT_USER}:${GIT_PWD}@github.com/CaramenSuaChua/ecommerce-gitops.git HEAD:main"
-                        }
-                    }
+    steps {
+        script {
+            // Xóa thư mục cũ để đảm bảo không bị cache config Git
+            sh "rm -rf ecommerce-gitops"
+            
+            withCredentials([usernamePassword(credentialsId: 'github-token', passwordVariable: 'GIT_PWD', usernameVariable: 'GIT_USER')]) {
+                // 1. Clone repo bằng URL chứa Token trực tiếp
+                sh "git clone https://${GIT_USER}:${GIT_PWD}@github.com/CaramenSuaChua/ecommerce-gitops.git"
+                
+                dir('ecommerce-gitops') {
+                    // 2. Cấu hình User để commit
+                    sh "git config user.email 'ngodungvb0304@gmail.com'"
+                    sh "git config user.name 'CaramenSuaChua'"
+                    
+                    // 3. Sửa file (Lưu ý: Đảm bảo đúng tên file deployment-fe.yaml)
+                    // Nếu file nằm trong folder thì phải thêm đường dẫn, ví dụ: k8s/deployment-fe.yaml
+                    sh "sed -i 's|image: caramensuachua/ecommerce-frontend:.*|image: caramensuachua/ecommerce-frontend:${env.VERSION}|g' deployment-fe.yaml"
+                    
+                    // 4. Kiểm tra xem có thay đổi không trước khi commit
+                    sh "git add ."
+                    
+                    // Lệnh commit này sẽ không làm fail pipeline nếu không có gì thay đổi
+                    sh "git commit -m 'Update image to ${env.VERSION} [skip ci]' || echo 'No changes to commit'"
+                    
+                    // 5. ĐẶC BIỆT: Push bằng cách truyền Token vào URL để ghi đè mọi cache 403
+                    sh "git push https://${GIT_USER}:${GIT_PWD}@github.com/CaramenSuaChua/ecommerce-gitops.git HEAD:main"
                 }
             }
         }
+    }
+}
     }
 
     post {
