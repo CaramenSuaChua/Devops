@@ -20,35 +20,24 @@ pipeline {
             }
         }
 
-        stage('Build & Push Docker Image') {
+        stage('Build & Push Fast') {
             steps {
                 script {
-                    // Tag đầy đủ: caramensuachua/ecommerce-frontend:main-v49
-                    def fullImageTag = "${env.DOCKER_REGISTRY}/${env.IMAGE_NAME}:${env.ACTUAL_BRANCH}-${env.VERSION}"
-                    def latestTag = "${env.DOCKER_REGISTRY}/${env.IMAGE_NAME}:${env.VERSION}"
-
-                    withCredentials([usernamePassword(credentialsId: "${env.DOCKER_HUB_CREDS}", passwordVariable: 'DOCKER_PWD', usernameVariable: 'DOCKER_USER')]) {
+                    def fullTag = "${DOCKER_REGISTRY}/${IMAGE_NAME}:${env.ACTUAL_BRANCH}-${VERSION}"
+                    
+                    withCredentials([usernamePassword(credentialsId: "${DOCKER_HUB_CREDS}", passwordVariable: 'PWD', usernameVariable: 'USER')]) {
+                        sh "echo \$PWD | docker login -u \$USER --password-stdin"
                         
-                        // TỐI ƯU: Login trước để kéo bản latest về làm cache
-                        sh "echo \$DOCKER_PWD | docker login -u \$DOCKER_USER --password-stdin"
-                        
-                        echo "--- Đang kéo bản latest để tối ưu Cache ---"
-                        sh "docker pull ${latestTag} || true"
-
-                        echo "--- Đang Build Image ${env.VERSION} ---"
-                        // Sử dụng --cache-from để tiết kiệm thời gian install npm
+                        // Sử dụng Buildx với cache nội bộ (inline cache)
+                        // Nếu layer npm install không đổi, nó sẽ bỏ qua trong 1 giây
                         sh """
-                            docker build \
-                            --cache-from ${latestTag} \
-                            -t ${fullImageTag} \
-                            -t ${latestTag} .
+                            docker buildx build \
+                            --cache-from type=registry,ref=${DOCKER_REGISTRY}/${IMAGE_NAME}:cache \
+                            --cache-to type=registry,ref=${DOCKER_REGISTRY}/${IMAGE_NAME}:cache,mode=max \
+                            -t ${fullTag} \
+                            -t ${DOCKER_REGISTRY}/${IMAGE_NAME}:${VERSION} \
+                            --push .
                         """
-
-                        echo "--- Đang Push Image ---"
-                        sh "docker push ${fullImageTag}"
-                        sh "docker push ${latestTag}"
-
-                        sh "docker logout"
                     }
                 }
             }
