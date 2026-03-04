@@ -13,6 +13,14 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 checkout scm
+                script {
+                    // Lệnh này lấy tên branch hiện tại và gán vào biến env.MY_BRANCH
+                    env.MY_BRANCH = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+                }
+                
+                echo "--- KẾT QUẢ ---"
+                echo "Branch hiện tại là: ${env.MY_BRANCH}"
+              
                 echo "--- Testing Connectivity ---"
                 echo "Successfully triggered by Webhook!"
                 echo "Running on branch: ${env.BRANCH}"
