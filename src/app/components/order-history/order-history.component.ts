@@ -19,15 +19,13 @@ export class OrderHistoryComponent implements OnInit{
 
   ngOnInit() {
     this.handleOrderHistory();
-    this.testai()
   }
 
   handleOrderHistory(){
 
     //read users email from browser storage
     const theEmail = JSON.parse(this.storage.getItem('userEmail')!);
-    const kjasfkaf = 12345
-    console.log(kjasfkaf)
+
     //retrieve data from the service
       this.orderHistoryService.getOrderHistory(theEmail).subscribe(
         data => {
