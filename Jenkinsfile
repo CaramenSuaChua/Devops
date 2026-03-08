@@ -31,12 +31,15 @@ pipeline {
         //     }
         // }
 
-        // stage('Build & Push Docker Image') {
-        //     steps {
-        //         script {
-        //             def repo = "${env.DOCKER_REGISTRY}/${env.IMAGE_NAME}"
-        //             def vTag = "${repo}:${env.VERSION}"
-        //             def latestTag = "${repo}:latest"
+        stage('Build & Push Docker Image') {
+            when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    def repo = "${env.DOCKER_REGISTRY}/${env.IMAGE_NAME}"
+                    def vTag = "${repo}:${env.IMAGE_TAG}"
+                    def latestTag = "${repo}:latest"
 
         //             withCredentials([usernamePassword(credentialsId: "${env.DOCKER_HUB_CREDS}", passwordVariable: 'DOCKER_PWD', usernameVariable: 'DOCKER_USER')]) {
                         
@@ -47,14 +50,13 @@ pipeline {
         //                 echo "--- Pulling latest image for caching ---"
         //                 sh "docker pull ${latestTag} || true"
 
-        //                 echo "--- Building Image version: ${env.VERSION} ---"
-        //                 // TỐI ƯU: Sử dụng --cache-from để không phải chạy lại npm install nếu không có thư viện mới
-        //                 sh """
-        //                     docker build \
-        //                     --cache-from ${latestTag} \
-        //                     -t ${vTag} \
-        //                     -t ${latestTag} .
-        //                 """
+                        echo "--- Building Image version: ${env.VERSION} ---"
+                        // TỐI ƯU: Sử dụng --cache-from để không phải chạy lại npm install nếu không có thư viện mới
+                        sh """
+                            docker build \
+                            --cache-from ${latestTag} \
+                            -t ${vTag} .
+                        """
 
         //                 echo "--- Pushing Tags ---"
         //                 sh "docker push ${vTag}"
@@ -65,41 +67,41 @@ pipeline {
         //     }
         // }
 
-        // stage('Update GitOps Manifest') {
-        //     when {
-        //         branch 'main'
-        //     }
-        //     steps {
-        //         script {
-        //             // Xóa thư mục cũ để đảm bảo không bị cache config Git
-        //             sh "rm -rf ecommerce-gitops"
+        stage('Update GitOps Manifest') {
+            when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    // Xóa thư mục cũ để đảm bảo không bị cache config Git
+                    sh "rm -rf ecommerce-gitops"
                     
-        //             withCredentials([usernamePassword(credentialsId: 'github-token', passwordVariable: 'GIT_PWD', usernameVariable: 'GIT_USER')]) {
-        //                 // 1. Clone repo bằng URL chứa Token trực tiếp
-        //                 sh "git clone https://${GIT_USER}:${GIT_PWD}@github.com/CaramenSuaChua/ecommerce-gitops.git"
+                    withCredentials([usernamePassword(credentialsId: 'github-token', passwordVariable: 'GIT_PWD', usernameVariable: 'GIT_USER')]) {
+                        // 1. Clone repo bằng URL chứa Token trực tiếp
+                        sh "git clone https://${GIT_USER}:${GIT_PWD}@github.com/CaramenSuaChua/ecommerce-gitops.git"
                         
-        //                 dir('ecommerce-gitops') {
-        //                     // 2. Cấu hình User để commit
-        //                     sh "git config user.email 'ngodungvb0304@gmail.com'"
-        //                     sh "git config user.name 'CaramenSuaChua'"
+                        dir('ecommerce-gitops') {
+                            // 2. Cấu hình User để commit
+                            sh "git config user.email 'ngodungvb0304@gmail.com'"
+                            sh "git config user.name 'CaramenSuaChua'"
                             
-        //                     // 3. Sửa file (Lưu ý: Đảm bảo đúng tên file deployment-fe.yaml)
-        //                     // Nếu file nằm trong folder thì phải thêm đường dẫn, ví dụ: k8s/deployment-fe.yaml
-        //                     sh "sed -i 's|image: caramensuachua/ecommerce-frontend:.*|image: caramensuachua/ecommerce-frontend:${env.VERSION}|g' deployment-fe.yaml"
+                            // 3. Sửa file (Lưu ý: Đảm bảo đúng tên file deployment-fe.yaml)
+                            // Sửa tag của frontend trong file values.yaml
+                            sh "sed -i 's|tag: .*|tag: ${env.IMAGE_TAG}|g' values.yaml"
                             
-        //                     // 4. Kiểm tra xem có thay đổi không trước khi commit
-        //                     sh "git add ."
+                            // 4. Kiểm tra xem có thay đổi không trước khi commit
+                            sh "git add ."
                             
-        //                     // Lệnh commit này sẽ không làm fail pipeline nếu không có gì thay đổi
-        //                     sh "git commit -m 'Update image to ${env.VERSION} [skip ci]' || echo 'No changes to commit'"
+                            // Lệnh commit này sẽ không làm fail pipeline nếu không có gì thay đổi
+                            sh "git commit -m 'Update image to ${env.IMAGE_TAG} [skip ci]' || echo 'No changes to commit'"
                             
-        //                     // 5. ĐẶC BIỆT: Push bằng cách truyền Token vào URL để ghi đè mọi cache 403
-        //                     sh "git push https://${GIT_USER}:${GIT_PWD}@github.com/CaramenSuaChua/ecommerce-gitops.git HEAD:main"
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
+                            // 5. ĐẶC BIỆT: Push bằng cách truyền Token vào URL để ghi đè mọi cache 403
+                            sh "git push https://${GIT_USER}:${GIT_PWD}@github.com/CaramenSuaChua/ecommerce-gitops.git HEAD:main"
+                        }
+                    }
+                }
+            }
+        }
     }
 
     post {
