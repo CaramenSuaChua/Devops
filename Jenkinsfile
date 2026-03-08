@@ -82,7 +82,7 @@ pipeline {
                             // 3. Sửa file (Lưu ý: Đảm bảo đúng tên file deployment-fe.yaml)
                             // Sửa tag của frontend trong file values.yaml
                             // Tìm từ khóa "frontend:", sau đó chỉ sửa dòng "tag:" đầu tiên xuất hiện sau nó
-                            sh "sed -i '/frontend:/,/tag:/ s|tag: .*|tag: ${env.IMAGE_TAG}|' values.yaml"
+                            sh "sed -i '/frontend:/,/tag:/ s|tag: .*|tag: ${env.IMAGE_TAG}|' ecommerce-chart/values.yaml"
                             
                             // 4. Kiểm tra xem có thay đổi không trước khi commit
                             sh "git add ."
@@ -105,6 +105,7 @@ pipeline {
         }
     }
 }
+
 
 
 
