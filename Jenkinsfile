@@ -9,6 +9,7 @@ pipeline {
     }
 
     stages {
+      
         stage('Checkout Code') {
             steps {
                 checkout scm
@@ -40,14 +41,14 @@ pipeline {
                     def vTag = "${repo}:${env.IMAGE_TAG}"
                     def latestTag = "${repo}:latest"
 
-                    withCredentials([usernamePassword(credentialsId: "${env.DOCKER_HUB_CREDS}", passwordVariable: 'DOCKER_PWD', usernameVariable: 'DOCKER_USER')]) {
+        //             withCredentials([usernamePassword(credentialsId: "${env.DOCKER_HUB_CREDS}", passwordVariable: 'DOCKER_PWD', usernameVariable: 'DOCKER_USER')]) {
                         
-                        // Login một lần duy nhất
-                        sh "echo \$DOCKER_PWD | docker login -u \$DOCKER_USER --password-stdin"
+        //                 // Login một lần duy nhất
+        //                 sh "echo \$DOCKER_PWD | docker login -u \$DOCKER_USER --password-stdin"
                         
-                        // Kéo bản latest về làm mốc so sánh cache (Docker sẽ so sánh các layer cũ)
-                        echo "--- Pulling latest image for caching ---"
-                        sh "docker pull ${latestTag} || true"
+        //                 // Kéo bản latest về làm mốc so sánh cache (Docker sẽ so sánh các layer cũ)
+        //                 echo "--- Pulling latest image for caching ---"
+        //                 sh "docker pull ${latestTag} || true"
 
                         echo "--- Building Image version: ${env.VERSION} ---"
                         // TỐI ƯU: Sử dụng --cache-from để không phải chạy lại npm install nếu không có thư viện mới
@@ -57,14 +58,14 @@ pipeline {
                             -t ${vTag} .
                         """
 
-                        echo "--- Pushing Tags ---"
-                        sh "docker push ${vTag}"
+        //                 echo "--- Pushing Tags ---"
+        //                 sh "docker push ${vTag}"
 
-                        sh "docker logout"
-                    }
-                }
-            }
-        }
+        //                 sh "docker logout"
+        //             }
+        //         }
+        //     }
+        // }
 
         stage('Update GitOps Manifest') {
             when {
@@ -109,3 +110,4 @@ pipeline {
         }
     }
 }
+
