@@ -65,9 +65,6 @@ pipeline {
         }
 
         stage('Update GitOps Manifest') {
-            when {
-                branch 'main'
-            }
             steps {
                 script {
                     // Xóa thư mục cũ để đảm bảo không bị cache config Git
@@ -107,6 +104,7 @@ pipeline {
         }
     }
 }
+
 
 
 
