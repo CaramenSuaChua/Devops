@@ -32,9 +32,6 @@ pipeline {
         // }
 
         stage('Build & Push Docker Image') {
-            when {
-                branch 'main'
-            }
             steps {
                 script {
                     def repo = "${env.DOCKER_REGISTRY}/${env.IMAGE_NAME}"
@@ -110,5 +107,6 @@ pipeline {
         }
     }
 }
+
 
 
