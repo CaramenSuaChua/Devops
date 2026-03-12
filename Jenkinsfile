@@ -101,7 +101,7 @@ pipeline {
                             
                             // Sửa tag trong file values.yaml của frontend
                             // Dùng sed chính xác để tránh sửa nhầm tag của backend
-                            sh "sed -i '/frontend:/,/tag:/ s|tag: .*|tag: ${env.IMAGE_TAG}|' values.yaml"
+                            sh "sed -i '/frontend:/,/tag:/ s|tag: .*|tag: ${env.IMAGE_TAG}|' ecommerce-chart/values.yaml"
                             
                             sh "git add values.yaml"
                             sh "git commit -m 'Update Frontend image to ${env.IMAGE_TAG} [skip ci]' || echo 'No changes'"
@@ -120,3 +120,4 @@ pipeline {
         }
     }
 }
+
