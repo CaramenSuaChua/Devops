@@ -4,13 +4,14 @@ pipeline {
     environment {
         // AWS INFORMATION
         AWS_ACCOUNT_ID    = "573051981771"
-        AWS_CREDS_ID      = "aws-creds"    // ID credentials AWS trong Jenkins, chứa Access Key và Secret Key
+        AWS_CREDS_ID      = "aws-creds"
         AWS_REGION        = "ap-southeast-1"
         AWS_ECR_REPO_NAME = "de150/ecommerce-frontend"
         ECR_REGISTRY      = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
         
         // DOCKER & METADATA
         IMAGE_NAME        = "ecommerce-frontend"
+        DOCKER_BUILDKIT   = '1' // Tăng tốc build và tối ưu cache
         
         // GITOPS
         GITOPS_CREDS      = "github-token"
@@ -25,43 +26,43 @@ pipeline {
             steps {
                 checkout scm
                 script {
-                    // Lấy mã hash ngắn của commit
                     env.IMAGE_TAG = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
                     echo "Frontend Image Tag: ${env.IMAGE_TAG}"
                 }
             }
         }
 
-        stage('PR Validation (Test & Scan Trivy)') {
+        // --- GIAI ĐOẠN VALIDATION KHI MỞ PR (CHẶN LỖI TRƯỚC KHI MERGE) ---
+        stage('PR Validation (Test & Scan)') {
             when { 
                 expression { env.action == 'opened' || env.action == 'synchronize' } 
             }
             steps {
                 script {
-                    echo "--- 1. Security Scan: Dockerfile Config ---"
-                    // Quét lỗi cấu hình Dockerfile (Ví dụ: chạy quyền root)
+                    echo "--- 1. Security Scan: Dockerfile Config (Trivy) ---"
+                    // Quét file cấu hình để đảm bảo PASS Trivy (đã sửa lỗi USER non-root)
                     sh "trivy config --severity HIGH,CRITICAL --exit-code 1 Dockerfile"
 
-                    echo "--- 2. Running Unit Test inside Docker ---"
-                    // Chỉ build đến stage 'test' trong Dockerfile
+                    echo "--- 2. Running Unit Test (Target: test) ---"
+                    // Build layer base (npm install) và chạy test. Layer base sẽ được cached cho lần sau.
                     sh "docker build --target test -t ${env.IMAGE_NAME}-test:${env.IMAGE_TAG} ."
 
-                    echo "--- 3. Dry-run Build (Compile Check) ---"
-                    // Build thử stage 'build' để đảm bảo code không lỗi biên dịch
+                    echo "--- 3. Dry-run Build (Target: build) ---"
+                    // Kiểm tra xem code có build ra assets thành công không
                     sh "docker build --target build -t ${env.IMAGE_NAME}-build-check:${env.IMAGE_TAG} ."
                 }
             }
             post {
                 always {
-                    // Dọn dẹp image rác để tránh đầy ổ cứng
+                    // Dọn dẹp để tiết kiệm ổ cứng
                     sh "docker rmi ${env.IMAGE_NAME}-test:${env.IMAGE_TAG} ${env.IMAGE_NAME}-build-check:${env.IMAGE_TAG} || true"
                 }
             }
         }
 
         stage('Code Quality (SonarQube)') {
-            when {
-                expression { env.action == 'opened' || env.action == 'synchronize' }
+            when { 
+                expression { env.action == 'opened' || env.action == 'synchronize' } 
             }
             steps {
                 script {
@@ -84,9 +85,11 @@ pipeline {
             }
         }
 
+        // --- GIAI ĐOẠN BUILD & DEPLOY KHI MERGE (ACTION == CLOSED) ---
         stage ("Build & Push to ECR") {
-            when {
-                expression { env.action == 'closed' }
+            // when { expression { env.action == 'closed' } }
+            when { 
+                expression { env.action == 'opened' || env.action == 'synchronize' } 
             }
             steps {
                 script {
@@ -100,11 +103,12 @@ pipeline {
                             aws configure set aws_secret_access_key $AWS_SECRET_KEY --profile jenkins
                             aws configure set default.region ''' + AWS_REGION + ''' --profile jenkins
         
-                            # Đăng nhập ECR
+                            # Login ECR
                             aws ecr get-login-password --region ''' + AWS_REGION + ''' --profile jenkins | docker login --username AWS --password-stdin ''' + env.ECR_REGISTRY + '''
         
-                            echo "--- Building Frontend Production Image ---"
-                            # Sử dụng build-arg BUILD_DATE để tách dòng trên ECR (như Back-end)
+                            echo "--- Fast Build: Target Production (Uses Cache) ---"
+                            # Docker sẽ tự dùng cache từ stage 'base' đã chạy ở PR
+                            # Bỏ qua hoàn toàn stage 'test' để tiết kiệm thời gian
                             docker build --target production --build-arg BUILD_DATE=''' + buildTimestamp + ''' -t ''' + ecrTag + ''' .
         
                             echo "--- Pushing Frontend Image to ECR ---"
@@ -118,9 +122,7 @@ pipeline {
         }
 
         stage('Setup ECR Secret for K8s') {
-            when {
-                expression { env.action == 'closed' }
-            }
+            when { expression { env.action == 'closed' } }
             steps {
                 script {
                     withCredentials([aws(credentialsId: "${env.AWS_CREDS_ID}", secretKeyVariable: 'AWS_SECRET_KEY', accessKeyVariable: 'AWS_ACCESS_KEY')]) {
@@ -129,13 +131,9 @@ pipeline {
                             export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_KEY
                             export AWS_DEFAULT_REGION=''' + AWS_REGION + '''
         
-                            # 1. Lấy Token từ ECR
                             TOKEN=$(aws ecr get-login-password --region ''' + AWS_REGION + ''')
-        
-                            # 2. Khai báo biến Kubeconfig rõ ràng
                             export KUBECONFIG=/var/lib/jenkins/.kube/config
         
-                            # 3. Tạo Secret (Dùng --validate=false để tránh lỗi OpenAPI redirect)
                             kubectl delete secret ecr-registry-helper -n ecommerce --ignore-not-found=true
                             
                             kubectl create secret docker-registry ecr-registry-helper \
@@ -144,8 +142,6 @@ pipeline {
                                 --docker-password=$TOKEN \
                                 --namespace ecommerce \
                                 --validate=false
-                            
-                            echo "--- Secret ecr-registry-helper created successfully ---"
                         '''
                     }
                 }
@@ -153,9 +149,7 @@ pipeline {
         }
 
         stage('Update GitOps Manifest') {
-            when {
-                expression { env.action == 'closed'}
-            }
+            when { expression { env.action == 'closed' } }
             steps {
                 script {
                     sh "rm -rf ecommerce-gitops"
@@ -166,17 +160,12 @@ pipeline {
                             sh """
                                 git config user.email 'ngodungvb0304@gmail.com'
                                 git config user.name 'CaramenSuaChua'
-                            """
-
-                            def valuesPath = "ecommerce-chart/values.yaml"
-                            sh """
-                                # Cập nhật cả repository (trỏ sang ECR) và tag mới
-                                sed -i '/frontend:/,/repository:/ s|repository: .*|repository: ${env.ECR_REGISTRY}/${env.AWS_ECR_REPO_NAME}|' ${valuesPath}
-                                sed -i '/frontend:/,/tag:/ s|tag: .*|tag: ${env.IMAGE_TAG}|' ${valuesPath}
-                            """
-
-                            sh """
-                                git add ${valuesPath}
+                                
+                                # Cập nhật repository và tag trong Helm values
+                                sed -i '/frontend:/,/repository:/ s|repository: .*|repository: ${env.ECR_REGISTRY}/${env.AWS_ECR_REPO_NAME}|' ecommerce-chart/values.yaml
+                                sed -i '/frontend:/,/tag:/ s|tag: .*|tag: ${env.IMAGE_TAG}|' ecommerce-chart/values.yaml
+                                
+                                git add ecommerce-chart/values.yaml
                                 git commit -m 'Update Frontend to ECR Image ${env.IMAGE_TAG} [skip ci]' || echo 'No changes'
                                 git push https://${GIT_USER}:${GIT_PWD}@${env.GITOPS_REPO} HEAD:main
                             """
@@ -191,6 +180,9 @@ pipeline {
         failure {
             echo "Frontend Pipeline FAILED!"
             sh "docker logout ${env.ECR_REGISTRY} || true"
+        }
+        success {
+            echo "Frontend Pipeline SUCCESSFUL!"
         }
     }
 }
