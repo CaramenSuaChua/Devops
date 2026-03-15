@@ -11,7 +11,6 @@ pipeline {
         
         // DOCKER & METADATA
         IMAGE_NAME        = "ecommerce-frontend"
-        DOCKER_BUILDKIT   = '1' // Tăng tốc build và tối ưu cache
         
         // GITOPS
         GITOPS_CREDS      = "github-token"
