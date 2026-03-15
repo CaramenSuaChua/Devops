@@ -86,10 +86,7 @@ pipeline {
 
         // --- GIAI ĐOẠN BUILD & DEPLOY KHI MERGE (ACTION == CLOSED) ---
         stage ("Build & Push to ECR") {
-            // when { expression { env.action == 'closed' } }
-            when { 
-                expression { env.action == 'opened' || env.action == 'synchronize' } 
-            }
+            when { expression { env.action == 'closed' } }
             steps {
                 script {
                     def ecrRepo = "${env.ECR_REGISTRY}/${env.AWS_ECR_REPO_NAME}"
