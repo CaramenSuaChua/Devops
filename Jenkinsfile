@@ -32,14 +32,30 @@ pipeline {
             }
         }
 
-        stage('Unit Test') {
-            when {
-                expression { env.action == 'opened' || env.action == 'synchronize' }
+        stage('PR Validation (Test & Scan Trivy)') {
+            when { 
+                expression { env.action == 'opened' || env.action == 'synchronize' } 
             }
             steps {
-                echo "--- Running Unit Test inside Docker ---"
-                // Lưu ý: Dockerfile của bạn phải có stage 'test'
-                sh "docker build --target test -t ${env.IMAGE_NAME}-test:${env.IMAGE_TAG} ."
+                script {
+                    echo "--- 1. Security Scan: Dockerfile Config ---"
+                    // Quét lỗi cấu hình Dockerfile (Ví dụ: chạy quyền root)
+                    sh "trivy config --severity HIGH,CRITICAL --exit-code 1 Dockerfile"
+
+                    echo "--- 2. Running Unit Test inside Docker ---"
+                    // Chỉ build đến stage 'test' trong Dockerfile
+                    sh "docker build --target test -t ${env.IMAGE_NAME}-test:${env.IMAGE_TAG} ."
+
+                    echo "--- 3. Dry-run Build (Compile Check) ---"
+                    // Build thử stage 'build' để đảm bảo code không lỗi biên dịch
+                    sh "docker build --target build -t ${env.IMAGE_NAME}-build-check:${env.IMAGE_TAG} ."
+                }
+            }
+            post {
+                always {
+                    // Dọn dẹp image rác để tránh đầy ổ cứng
+                    sh "docker rmi ${env.IMAGE_NAME}-test:${env.IMAGE_TAG} ${env.IMAGE_NAME}-build-check:${env.IMAGE_TAG} || true"
+                }
             }
         }
 
@@ -89,7 +105,7 @@ pipeline {
         
                             echo "--- Building Frontend Production Image ---"
                             # Sử dụng build-arg BUILD_DATE để tách dòng trên ECR (như Back-end)
-                            docker build --build-arg BUILD_DATE=''' + buildTimestamp + ''' -t ''' + ecrTag + ''' .
+                            docker build --target production --build-arg BUILD_DATE=''' + buildTimestamp + ''' -t ''' + ecrTag + ''' .
         
                             echo "--- Pushing Frontend Image to ECR ---"
                             docker push ''' + ecrTag + '''
