@@ -3,13 +3,11 @@
 FROM node:18-alpine AS base
 WORKDIR /app
 COPY package.json package-lock.json ./
-# Tận dụng cache cho node_modules
 RUN npm install --force
 
 # --- Stage 2: Test ---
 FROM base AS test
 COPY . .
-# Stage này chỉ chạy khi Jenkins gọi --target test
 RUN npm run test -- --watch=false --browsers=ChromeHeadless || echo "No tests defined"
 
 # --- Stage 3: Build ---
@@ -18,16 +16,29 @@ COPY . .
 RUN npm run build
 
 # --- Stage 4: Production ---
-FROM nginx:alpine
+FROM nginx:alpine AS production
 ARG BUILD_DATE
 
-# Gộp lệnh để giảm layer và tránh lỗi SonarQube
+# 1. Gộp lệnh thiết lập Timezone và Phân quyền cho Nginx chạy non-root
+# Nginx cần quyền ghi vào các thư mục cache và pid
 RUN echo "Build Time: $BUILD_DATE" > /usr/share/nginx/html/build_info.txt && \
     apk add --no-cache tzdata && \
     cp /usr/share/zoneinfo/Asia/Ho_Chi_Minh /etc/localtime && \
-    echo "Asia/Ho_Chi_Minh" > /etc/timezone
+    echo "Asia/Ho_Chi_Minh" > /etc/timezone && \
+    # Cấu hình để Nginx chạy được với user thường
+    chown -R nginx:nginx /usr/share/nginx/html && \
+    chown -R nginx:nginx /var/cache/nginx && \
+    chown -R nginx:nginx /var/log/nginx && \
+    chown -R nginx:nginx /etc/nginx/conf.d && \
+    touch /var/run/nginx.pid && \
+    chown -R nginx:nginx /var/run/nginx.pid
 
-# Copy kết quả build từ stage trước
+# 2. Copy code đã build
 COPY --from=build /app/dist/angular-ecommerce /usr/share/nginx/html
 
+# 3. Chuyển sang user nginx (user này có sẵn trong image nginx:alpine)
+USER nginx
+
 EXPOSE 80
+
+ENTRYPOINT ["nginx", "-g", "daemon off;"]
