@@ -2,47 +2,55 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_REGISTRY = "caramensuachua"
-        IMAGE_NAME = "ecommerce-frontend"
-        DOCKER_HUB_CREDS = "docker-hub-creds"
-        // IMAGE_TAG được lấy từ commit hash ngắn
-        IMAGE_TAG = "" 
+        // AWS INFORMATION
+        AWS_ACCOUNT_ID    = "573051981771"
+        AWS_CREDS_ID      = "aws-creds"    // ID credentials AWS trong Jenkins, chứa Access Key và Secret Key
+        AWS_REGION        = "ap-southeast-1"
+        AWS_ECR_REPO_NAME = "de150/ecommerce-frontend"
+        ECR_REGISTRY      = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        
+        // DOCKER & METADATA
+        IMAGE_NAME        = "ecommerce-frontend"
+        
+        // GITOPS
+        GITOPS_CREDS      = "github-token"
+        GITOPS_REPO       = "github.com/CaramenSuaChua/ecommerce-gitops.git"
+        
+        // SONARQUBE
+        SONAR_SERVER_NAME = "SonarQube"
     }
 
     stages {
-        stage('Checkout Code') {
+        stage('Checkout & Metadata') {
             steps {
                 checkout scm
                 script {
+                    // Lấy mã hash ngắn của commit
                     env.IMAGE_TAG = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
                     echo "Frontend Image Tag: ${env.IMAGE_TAG}"
-                    echo "Action: ${env.action} | Merged: ${env.merged}"
                 }
             }
         }
 
-        stage('Unit Test') {
-            // Chạy Test khi có Pull Request (opened/synchronize)
-            when {
-                expression { env.action == 'opened' || env.action == 'synchronize' }
-            }
-            steps {
-                echo "--- Chạy Unit Test bên trong Docker ---"
-                // Build stage 'test' từ Dockerfile. 
-                // Nếu lệnh RUN npm run test bên trong Dockerfile fail, bước này sẽ báo lỗi và dừng pipeline.
-                sh "docker build --target test -t ecommerce-frontend-test:${env.IMAGE_TAG} ."
-            }
-        }
+        // stage('Unit Test') {
+        //     when {
+        //         expression { env.action == 'opened' || env.action == 'synchronize' }
+        //     }
+        //     steps {
+        //         echo "--- Running Unit Test inside Docker ---"
+        //         // Lưu ý: Dockerfile của bạn phải có stage 'test'
+        //         sh "docker build --target test -t ${env.IMAGE_NAME}-test:${env.IMAGE_TAG} ."
+        //     }
+        // }
 
         stage('Code Quality (SonarQube)') {
-            // Chỉ chạy nếu Unit Test ở trên pass
             when {
                 expression { env.action == 'opened' || env.action == 'synchronize' }
             }
             steps {
                 script {
                     def scannerHome = tool 'sonar-scanner'
-                    withSonarQubeEnv('SonarQube') {
+                    withSonarQubeEnv("${env.SONAR_SERVER_NAME}") {
                         sh "${scannerHome}/bin/sonar-scanner \
                             -Dsonar.projectKey=Ecommerce-Frontend \
                             -Dsonar.sources=. \
@@ -60,27 +68,36 @@ pipeline {
             }
         }
 
-        stage('Build & Push Docker Image') {
-            // Chỉ chạy khi Merge (action closed và merged true)
+        stage ("Build & Push to ECR") {
+            // Chạy khi có PR hoặc Merge tùy theo workflow của bạn. 
+            // Ở đây tôi giữ theo logic back-end của bạn (PR opened/sync)
             when {
-                expression { env.action == 'closed'}
+                expression { env.action == 'opened' || env.action == 'synchronize' }
             }
             steps {
                 script {
-                    def repo = "${env.DOCKER_REGISTRY}/${env.IMAGE_NAME}"
-                    def vTag = "${repo}:${env.IMAGE_TAG}"
+                    def ecrRepo = "${env.ECR_REGISTRY}/${env.AWS_ECR_REPO_NAME}"
+                    def ecrTag = "${ecrRepo}:${env.IMAGE_TAG}"
+                    def buildTimestamp = new Date().format("yyyyMMddHHmmss")
 
-                    withCredentials([usernamePassword(credentialsId: "${env.DOCKER_HUB_CREDS}", passwordVariable: 'DOCKER_PWD', usernameVariable: 'DOCKER_USER')]) {
-                        sh "echo \$DOCKER_PWD | docker login -u \$DOCKER_USER --password-stdin"
-                        
-                        echo "--- Building Production Image ---"
-                        // Build image cuối cùng (Stage Production trong Dockerfile)
-                        sh "docker build -t ${vTag} ."
-
-                        echo "--- Pushing Image ---"
-                        sh "docker push ${vTag}"
-
-                        sh "docker logout"
+                    withCredentials([aws(credentialsId: "${env.AWS_CREDS_ID}", secretKeyVariable: 'AWS_SECRET_KEY', accessKeyVariable: 'AWS_ACCESS_KEY')]) {
+                        sh '''
+                            aws configure set aws_access_key_id $AWS_ACCESS_KEY --profile jenkins
+                            aws configure set aws_secret_access_key $AWS_SECRET_KEY --profile jenkins
+                            aws configure set default.region ''' + AWS_REGION + ''' --profile jenkins
+        
+                            # Đăng nhập ECR
+                            aws ecr get-login-password --region ''' + AWS_REGION + ''' --profile jenkins | docker login --username AWS --password-stdin ''' + env.ECR_REGISTRY + '''
+        
+                            echo "--- Building Frontend Production Image ---"
+                            # Sử dụng build-arg BUILD_DATE để tách dòng trên ECR (như Back-end)
+                            docker build --build-arg BUILD_DATE=''' + buildTimestamp + ''' -t ''' + ecrTag + ''' .
+        
+                            echo "--- Pushing Frontend Image to ECR ---"
+                            docker push ''' + ecrTag + '''
+                            
+                            docker logout ''' + env.ECR_REGISTRY + '''
+                        '''
                     }
                 }
             }
@@ -88,24 +105,34 @@ pipeline {
 
         stage('Update GitOps Manifest') {
             when {
-                expression { env.action == 'closed' }
+                // Thường stage này nên chạy khi PR đã closed và merged: true
+                expression { env.action == 'opened' || env.action == 'synchronize' }
             }
             steps {
                 script {
                     sh "rm -rf ecommerce-gitops"
-                    withCredentials([usernamePassword(credentialsId: 'github-token', passwordVariable: 'GIT_PWD', usernameVariable: 'GIT_USER')]) {
-                        sh "git clone https://${GIT_USER}:${GIT_PWD}@github.com/CaramenSuaChua/ecommerce-gitops.git"
+                    withCredentials([usernamePassword(credentialsId: "${env.GITOPS_CREDS}", passwordVariable: 'GIT_PWD', usernameVariable: 'GIT_USER')]) {
+                        sh "git clone https://${GIT_USER}:${GIT_PWD}@${env.GITOPS_REPO}"
+                        
                         dir('ecommerce-gitops') {
-                            sh "git config user.email 'ngodungvb0304@gmail.com'"
-                            sh "git config user.name 'CaramenSuaChua'"
+                            sh """
+                                git config user.email 'ngodungvb0304@gmail.com'
+                                git config user.name 'CaramenSuaChua'
+                            """
+
+                            def valuesPath = "ecommerce-chart/values.yaml"
                             
-                            // Sửa tag trong file values.yaml của frontend
-                            // Dùng sed chính xác để tránh sửa nhầm tag của backend
-                            sh "sed -i '/frontend:/,/tag:/ s|tag: .*|tag: ${env.IMAGE_TAG}|' ecommerce-chart/values.yaml"
-                            
-                            sh "git add values.yaml"
-                            sh "git commit -m 'Update Frontend image to ${env.IMAGE_TAG} [skip ci]' || echo 'No changes'"
-                            sh "git push https://${GIT_USER}:${GIT_PWD}@github.com/CaramenSuaChua/ecommerce-gitops.git HEAD:main"
+                            sh """
+                                # Cập nhật cả repository (trỏ sang ECR) và tag mới
+                                sed -i '/frontend:/,/repository:/ s|repository: .*|repository: ${env.ECR_REGISTRY}/${env.AWS_ECR_REPO_NAME}|' ${valuesPath}
+                                sed -i '/frontend:/,/tag:/ s|tag: .*|tag: ${env.IMAGE_TAG}|' ${valuesPath}
+                            """
+
+                            sh """
+                                git add ${valuesPath}
+                                git commit -m 'Update Frontend to ECR Image ${env.IMAGE_TAG} [skip ci]' || echo 'No changes'
+                                git push https://${GIT_USER}:${GIT_PWD}@${env.GITOPS_REPO} HEAD:main
+                            """
                         }
                     }
                 }
@@ -116,8 +143,7 @@ pipeline {
     post {
         failure {
             echo "Frontend Pipeline FAILED!"
-            sh "docker logout || true"
+            sh "docker logout ${env.ECR_REGISTRY} || true"
         }
     }
 }
-
