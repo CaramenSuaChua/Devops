@@ -70,7 +70,7 @@ pipeline {
 
         stage ("Build & Push to ECR") {
             when {
-                expression { env.action == 'opened' || env.action == 'synchronize' }
+                expression { env.action == 'closed' }
             }
             steps {
                 script {
@@ -102,11 +102,8 @@ pipeline {
         }
 
         stage('Setup ECR Secret for K8s') {
-            // when {
-            //     expression { env.action == 'closed' }
-            // }
             when {
-                expression { env.action == 'opened' || env.action == 'synchronize' }
+                expression { env.action == 'closed' }
             }
             steps {
                 script {
@@ -140,11 +137,8 @@ pipeline {
         }
 
         stage('Update GitOps Manifest') {
-            // when {
-            //     expression { env.action == 'closed'}
-            // }
             when {
-                expression { env.action == 'opened' || env.action == 'synchronize' }
+                expression { env.action == 'closed'}
             }
             steps {
                 script {

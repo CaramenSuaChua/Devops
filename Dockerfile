@@ -3,11 +3,13 @@
 FROM node:18-alpine AS base
 WORKDIR /app
 COPY package.json package-lock.json ./
+# Tận dụng cache cho node_modules
 RUN npm install --force
 
 # --- Stage 2: Test ---
 FROM base AS test
 COPY . .
+# Stage này chỉ chạy khi Jenkins gọi --target test
 RUN npm run test -- --watch=false --browsers=ChromeHeadless || echo "No tests defined"
 
 # --- Stage 3: Build ---
@@ -17,16 +19,15 @@ RUN npm run build
 
 # --- Stage 4: Production ---
 FROM nginx:alpine
-# 1. Khai báo ARG để nhận biến từ Jenkins
 ARG BUILD_DATE
 
-# 2. Gộp lệnh để SonarQube không báo lỗi và tách dòng ECR
-RUN echo "Build Time: $BUILD_DATE" > /usr/share/nginx/html/build_info.txt \
-    && apk add --no-cache tzdata \
-    && cp /usr/share/zoneinfo/Asia/Ho_Chi_Minh /etc/localtime \
-    && echo "Asia/Ho_Chi_Minh" > /etc/timezone
+# Gộp lệnh để giảm layer và tránh lỗi SonarQube
+RUN echo "Build Time: $BUILD_DATE" > /usr/share/nginx/html/build_info.txt && \
+    apk add --no-cache tzdata && \
+    cp /usr/share/zoneinfo/Asia/Ho_Chi_Minh /etc/localtime && \
+    echo "Asia/Ho_Chi_Minh" > /etc/timezone
 
-# 3. Copy kết quả build
+# Copy kết quả build từ stage trước
 COPY --from=build /app/dist/angular-ecommerce /usr/share/nginx/html
 
 EXPOSE 80
