@@ -118,7 +118,6 @@ pipeline {
                             """
 
                             def valuesPath = "ecommerce-chart/values.yaml"
-                            
                             sh """
                                 # Cập nhật cả repository (trỏ sang ECR) và tag mới
                                 sed -i '/frontend:/,/repository:/ s|repository: .*|repository: ${env.ECR_REGISTRY}/${env.AWS_ECR_REPO_NAME}|' ${valuesPath}
