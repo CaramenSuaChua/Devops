@@ -32,16 +32,16 @@ pipeline {
             }
         }
 
-        // stage('Unit Test') {
-        //     when {
-        //         expression { env.action == 'opened' || env.action == 'synchronize' }
-        //     }
-        //     steps {
-        //         echo "--- Running Unit Test inside Docker ---"
-        //         // Lưu ý: Dockerfile của bạn phải có stage 'test'
-        //         sh "docker build --target test -t ${env.IMAGE_NAME}-test:${env.IMAGE_TAG} ."
-        //     }
-        // }
+        stage('Unit Test') {
+            when {
+                expression { env.action == 'opened' || env.action == 'synchronize' }
+            }
+            steps {
+                echo "--- Running Unit Test inside Docker ---"
+                // Lưu ý: Dockerfile của bạn phải có stage 'test'
+                sh "docker build --target test -t ${env.IMAGE_NAME}-test:${env.IMAGE_TAG} ."
+            }
+        }
 
         stage('Code Quality (SonarQube)') {
             when {
@@ -69,10 +69,8 @@ pipeline {
         }
 
         stage ("Build & Push to ECR") {
-            // Chạy khi có PR hoặc Merge tùy theo workflow của bạn. 
-            // Ở đây tôi giữ theo logic back-end của bạn (PR opened/sync)
             when {
-                expression { env.action == 'opened' || env.action == 'synchronize' }
+                expression { env.action == 'closed'}
             }
             steps {
                 script {
@@ -105,8 +103,7 @@ pipeline {
 
         stage('Update GitOps Manifest') {
             when {
-                // Thường stage này nên chạy khi PR đã closed và merged: true
-                expression { env.action == 'opened' || env.action == 'synchronize' }
+                expression { env.action == 'closed'}
             }
             steps {
                 script {
