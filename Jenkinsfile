@@ -70,7 +70,7 @@ pipeline {
 
         stage ("Build & Push to ECR") {
             when {
-                expression { env.action == 'closed'}
+                expression { env.action == 'opened' || env.action == 'synchronize' }
             }
             steps {
                 script {
@@ -101,9 +101,50 @@ pipeline {
             }
         }
 
-        stage('Update GitOps Manifest') {
+        stage('Setup ECR Secret for K8s') {
+            // when {
+            //     expression { env.action == 'closed' }
+            // }
             when {
-                expression { env.action == 'closed'}
+                expression { env.action == 'opened' || env.action == 'synchronize' }
+            }
+            steps {
+                script {
+                    withCredentials([aws(credentialsId: "${env.AWS_CREDS_ID}", secretKeyVariable: 'AWS_SECRET_KEY', accessKeyVariable: 'AWS_ACCESS_KEY')]) {
+                        sh '''
+                            export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY
+                            export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_KEY
+                            export AWS_DEFAULT_REGION=''' + AWS_REGION + '''
+        
+                            # 1. Lấy Token từ ECR
+                            TOKEN=$(aws ecr get-login-password --region ''' + AWS_REGION + ''')
+        
+                            # 2. Khai báo biến Kubeconfig rõ ràng
+                            export KUBECONFIG=/var/lib/jenkins/.kube/config
+        
+                            # 3. Tạo Secret (Dùng --validate=false để tránh lỗi OpenAPI redirect)
+                            kubectl delete secret ecr-registry-helper -n ecommerce --ignore-not-found=true
+                            
+                            kubectl create secret docker-registry ecr-registry-helper \
+                                --docker-server=''' + ECR_REGISTRY + ''' \
+                                --docker-username=AWS \
+                                --docker-password=$TOKEN \
+                                --namespace ecommerce \
+                                --validate=false
+                            
+                            echo "--- Secret ecr-registry-helper created successfully ---"
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Update GitOps Manifest') {
+            // when {
+            //     expression { env.action == 'closed'}
+            // }
+            when {
+                expression { env.action == 'opened' || env.action == 'synchronize' }
             }
             steps {
                 script {
