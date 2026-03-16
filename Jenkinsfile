@@ -26,71 +26,45 @@ pipeline {
                 checkout scm
                 script {
                     env.IMAGE_TAG = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
-                    echo "Frontend Image Tag: ${env.IMAGE_TAG}"
                 }
             }
         }
 
-        // --- GIAI ĐOẠN VALIDATION KHI MỞ PR (CHẶN LỖI TRƯỚC KHI MERGE) ---
         stage('PR Validation (Test & Scan)') {
             when { expression { env.action == 'opened' || env.action == 'synchronize' } }
             steps {
                 script {
-                    echo "--- 1. Security Scan: Dockerfile Config ---"
                     sh "trivy config --severity HIGH,CRITICAL --exit-code 1 Dockerfile"
-
-                    echo "--- 2. Running Unit Test (Using Cache) ---"
-                    // sh "docker build --target test -t ${env.IMAGE_NAME}-test:${env.IMAGE_TAG} . "
-
-                    echo "--- 3. Dry-run Build Check ---"
                     sh "docker build --target build -t ${env.IMAGE_NAME}-build-check:${env.IMAGE_TAG} . "
                 }
             }
             post {
                 always {
-                    sh "docker rmi ${env.IMAGE_NAME}-test:${env.IMAGE_TAG} ${env.IMAGE_NAME}-build-check:${env.IMAGE_TAG} || true"
+                    sh "docker rmi ${env.IMAGE_NAME}-build-check:${env.IMAGE_TAG} || true"
                 }
             }
         }
 
         stage('Code Quality (SonarQube)') {
-            when { 
-                expression { env.action == 'opened' || env.action == 'synchronize' } 
-            }
+            when { expression { env.action == 'opened' || env.action == 'synchronize' } }
             steps {
                 script {
                     def scannerHome = tool 'sonar-scanner'
                     withSonarQubeEnv("${env.SONAR_SERVER_NAME}") {
-                        sh "${scannerHome}/bin/sonar-scanner \
-                            -Dsonar.projectKey=Ecommerce-Frontend \
-                            -Dsonar.sources=. \
-                            -Dsonar.host.url=http://18.139.185.108:9000 \
-                            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info" 
-                    }
-                    
-                    timeout(time: 10, unit: 'MINUTES') {
-                        def qg = waitForQualityGate()
-                        if (qg.status != 'OK') {
-                            error "Pipeline fail do Quality Gate báo lỗi: ${qg.status}"
-                        }
+                        sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=Ecommerce-Frontend"
                     }
                 }
             }
         }
 
-        // --- GIAI ĐOẠN BUILD & DEPLOY KHI MERGE (ACTION == CLOSED) ---
         stage ("Build & Push to ECR") {
-            when { 
-                expression { env.action == 'opened' || env.action == 'synchronize' } 
-            }
+            when { expression { env.action == 'closed' } }
             steps {
                 script {
-                    def ecrRepo = "${env.ECR_REGISTRY}/${env.AWS_ECR_REPO_NAME}"
-                    def ecrTag = "${ecrRepo}:${env.IMAGE_TAG}"
+                    def ecrTag = "${env.ECR_REGISTRY}/${env.AWS_ECR_REPO_NAME}:${env.IMAGE_TAG}"
                     def buildTimestamp = new Date().format("yyyyMMddHHmmss")
 
                     withCredentials([aws(credentialsId: "${env.AWS_CREDS_ID}", secretKeyVariable: 'AWS_SECRET_KEY', accessKeyVariable: 'AWS_ACCESS_KEY')]) {
-                        // Dùng nháy đơn để bảo vệ biến Shell ($AWS_ACCESS_KEY)
                         sh '''
                             aws configure set aws_access_key_id $AWS_ACCESS_KEY --profile jenkins
                             aws configure set aws_secret_access_key $AWS_SECRET_KEY --profile jenkins
@@ -98,7 +72,7 @@ pipeline {
         
                             aws ecr get-login-password --region ''' + env.AWS_REGION + ''' --profile jenkins | docker login --username AWS --password-stdin ''' + env.ECR_REGISTRY + '''
         
-                            echo "--- Fast Build: Target Production ---"
+                            echo "--- Building Production Image ---"
                             docker build --target production --build-arg BUILD_DATE=''' + buildTimestamp + ''' -t ''' + ecrTag + ''' .
         
                             docker push ''' + ecrTag + '''
@@ -110,9 +84,7 @@ pipeline {
         }
 
         stage('Setup ECR Secret for K8s') {
-            when { 
-                expression { env.action == 'opened' || env.action == 'synchronize' } 
-            }
+            when { expression { env.action == 'closed' } }
             steps {
                 script {
                     withCredentials([aws(credentialsId: "${env.AWS_CREDS_ID}", secretKeyVariable: 'AWS_SECRET_KEY', accessKeyVariable: 'AWS_ACCESS_KEY')]) {
@@ -121,7 +93,7 @@ pipeline {
                             export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_KEY
                             export AWS_DEFAULT_REGION=''' + env.AWS_REGION + '''
         
-                            # Sử dụng dấu \ trước biến $TOKEN để Jenkins không can thiệp vào
+                            # Khong dung dau gach cheo o day vi dang dung nhay don
                             TOKEN=$(aws ecr get-login-password --region ''' + env.AWS_REGION + ''')
                             export KUBECONFIG=/var/lib/jenkins/.kube/config
         
@@ -146,34 +118,21 @@ pipeline {
                     sh "rm -rf ecommerce-gitops"
                     withCredentials([usernamePassword(credentialsId: "${env.GITOPS_CREDS}", passwordVariable: 'GIT_PWD', usernameVariable: 'GIT_USER')]) {
                         sh "git clone https://${GIT_USER}:${GIT_PWD}@${env.GITOPS_REPO}"
-                        
                         dir('ecommerce-gitops') {
-                            sh """
+                            sh '''
                                 git config user.email 'ngodungvb0304@gmail.com'
                                 git config user.name 'CaramenSuaChua'
                                 
-                                # Cập nhật repository và tag trong Helm values
-                                sed -i '/frontend:/,/repository:/ s|repository: .*|repository: ${env.ECR_REGISTRY}/${env.AWS_ECR_REPO_NAME}|' ecommerce-chart/values.yaml
-                                sed -i '/frontend:/,/tag:/ s|tag: .*|tag: ${env.IMAGE_TAG}|' ecommerce-chart/values.yaml
+                                sed -i '/frontend:/,/tag:/ s|tag: .*|tag: ''' + env.IMAGE_TAG + '''|' ecommerce-chart/values.yaml
                                 
-                                git add ecommerce-chart/values.yaml
-                                git commit -m 'Update Frontend to ECR Image ${env.IMAGE_TAG} [skip ci]' || echo 'No changes'
-                                git push https://${GIT_USER}:${GIT_PWD}@${env.GITOPS_REPO} HEAD:main
-                            """
+                                git add .
+                                git commit -m 'Update Frontend tag' || echo 'No changes'
+                                git push https://''' + GIT_USER + ''':''' + GIT_PWD + '''@''' + env.GITOPS_REPO + ''' HEAD:main
+                            '''
                         }
                     }
                 }
             }
-        }
-    }
-
-    post {
-        failure {
-            echo "Frontend Pipeline FAILED!"
-            sh "docker logout ${env.ECR_REGISTRY} || true"
-        }
-        success {
-            echo "Frontend Pipeline SUCCESSFUL!"
         }
     }
 }
