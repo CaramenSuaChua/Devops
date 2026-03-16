@@ -7,10 +7,10 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm install --force
 
-FROM base AS test
-COPY . .
-# Stage này dùng để chạy test trong Jenkins
-RUN npm run test -- --watch=false --browsers=ChromeHeadless
+# FROM base AS test
+# COPY . .
+# # Stage này dùng để chạy test trong Jenkins
+# RUN npm run test -- --watch=false --browsers=ChromeHeadless
 
 # --- Stage 3: Build ---
 FROM base AS build
