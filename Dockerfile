@@ -5,19 +5,15 @@
 FROM node:18-alpine AS base
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm install --force
+RUN npm ci --force
 
-# --- Stage 2: Test ---
-FROM base AS test
-COPY . .
-RUN npm run test -- --watch=false --browsers=ChromeHeadless || echo "No tests defined"
-
-# --- Stage 3: Build ---
+# --- Stage 2: Build ---
 FROM base AS build
+COPY --from=base /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-# --- Stage 4: Production ---
+# --- Stage 3: Production ---
 FROM nginx:alpine AS production
 ARG BUILD_DATE
 
