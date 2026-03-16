@@ -33,26 +33,21 @@ pipeline {
 
         // --- GIAI ĐOẠN VALIDATION KHI MỞ PR (CHẶN LỖI TRƯỚC KHI MERGE) ---
         stage('PR Validation (Test & Scan)') {
-            when { 
-                expression { env.action == 'opened' || env.action == 'synchronize' } 
-            }
+            when { expression { env.action == 'opened' || env.action == 'synchronize' } }
             steps {
                 script {
-                  echo "--- 1. Security Scan: Dockerfile ---"
-                  sh "trivy config --severity HIGH,CRITICAL --exit-code 1 Dockerfile"
-      
-                  echo "--- 2. Build Base Image for Testing ---"
-                  // Build stage 'base' để có môi trường node_modules
-                  sh "docker build --target test -t ${env.IMAGE_NAME}-test:${env.IMAGE_TAG} ."
-            
-                  echo "--- 3. Dry-run Build ---"
-                  sh "docker build --cache-from ${env.IMAGE_NAME}-base:${env.IMAGE_TAG} --target test -t ${env.IMAGE_NAME}-test:${env.IMAGE_TAG} ."
-                  // sh "docker build --target build -t ${env.IMAGE_NAME}-build-check:${env.IMAGE_TAG} ."
+                    echo "--- 1. Security Scan: Dockerfile Config ---"
+                    sh "trivy config --severity HIGH,CRITICAL --exit-code 1 Dockerfile"
+
+                    echo "--- 2. Running Unit Test (Using Cache) ---"
+                    sh "docker build --target test -t ${env.IMAGE_NAME}-test:${env.IMAGE_TAG} . "
+
+                    echo "--- 3. Dry-run Build Check ---"
+                    sh "docker build --target build -t ${env.IMAGE_NAME}-build-check:${env.IMAGE_TAG} . "
                 }
             }
             post {
                 always {
-                    // Dọn dẹp để tiết kiệm ổ cứng
                     sh "docker rmi ${env.IMAGE_NAME}-test:${env.IMAGE_TAG} ${env.IMAGE_NAME}-build-check:${env.IMAGE_TAG} || true"
                 }
             }
@@ -85,7 +80,10 @@ pipeline {
 
         // --- GIAI ĐOẠN BUILD & DEPLOY KHI MERGE (ACTION == CLOSED) ---
         stage ("Build & Push to ECR") {
-            when { expression { env.action == 'closed' } }
+            // when { expression { env.action == 'closed' } }
+            when { 
+                expression { env.action == 'opened' || env.action == 'synchronize' } 
+            }
             steps {
                 script {
                     def ecrRepo = "${env.ECR_REGISTRY}/${env.AWS_ECR_REPO_NAME}"
