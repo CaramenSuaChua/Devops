@@ -43,19 +43,12 @@ pipeline {
       
                   echo "--- 2. Build Base Image for Testing ---"
                   // Build stage 'base' để có môi trường node_modules
-                  sh "docker build --target base -t ${env.IMAGE_NAME}-base:${env.IMAGE_TAG} ."
-      
-                  echo "--- 3. Running Unit Test ---"
-                  // Chạy lệnh test trực tiếp từ image base vừa build
-                  // Mount code hiện tại vào và chạy npm run test
-                  sh """
-                      docker run --rm \
-                      -v ${WORKSPACE}:/app \
-                      -w /app \
-                      ${env.IMAGE_NAME}-base:${env.IMAGE_TAG} \
-                      npm run test -- --watch=false --browsers=ChromeHeadless
-                  """
-              }
+                  sh "docker build --target test -t ${env.IMAGE_NAME}-test:${env.IMAGE_TAG} ."
+            
+                  echo "--- 3. Dry-run Build ---"
+                  sh "docker build --cache-from ${env.IMAGE_NAME}-base:${env.IMAGE_TAG} --target test -t ${env.IMAGE_NAME}-test:${env.IMAGE_TAG} ."
+                  // sh "docker build --target build -t ${env.IMAGE_NAME}-build-check:${env.IMAGE_TAG} ."
+                }
             }
             post {
                 always {
@@ -111,7 +104,9 @@ pipeline {
                             echo "--- Fast Build: Target Production (Uses Cache) ---"
                             # Docker sẽ tự dùng cache từ stage 'base' đã chạy ở PR
                             # Bỏ qua hoàn toàn stage 'test' để tiết kiệm thời gian
-                            docker build --target production --build-arg BUILD_DATE=''' + buildTimestamp + ''' -t ''' + ecrTag + ''' .
+                            docker build --cache-from ${env.IMAGE_NAME}-base:${env.IMAGE_TAG} --target production --build-arg BUILD_DATE=''' + buildTimestamp + ''' -t ''' + ecrTag + ''' .
+
+                            
         
                             echo "--- Pushing Frontend Image to ECR ---"
                             docker push ''' + ecrTag + '''
