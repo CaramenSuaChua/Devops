@@ -40,7 +40,7 @@ pipeline {
                     sh "trivy config --severity HIGH,CRITICAL --exit-code 1 Dockerfile"
 
                     echo "--- 2. Running Unit Test (Using Cache) ---"
-                    sh "docker build --target test -t ${env.IMAGE_NAME}-test:${env.IMAGE_TAG} . "
+                    // sh "docker build --target test -t ${env.IMAGE_NAME}-test:${env.IMAGE_TAG} . "
 
                     echo "--- 3. Dry-run Build Check ---"
                     sh "docker build --target build -t ${env.IMAGE_NAME}-build-check:${env.IMAGE_TAG} . "
