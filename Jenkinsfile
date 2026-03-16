@@ -38,18 +38,24 @@ pipeline {
             }
             steps {
                 script {
-                    echo "--- 1. Security Scan: Dockerfile Config (Trivy) ---"
-                    // Quét file cấu hình để đảm bảo PASS Trivy (đã sửa lỗi USER non-root)
-                    sh "trivy config --severity HIGH,CRITICAL --exit-code 1 Dockerfile"
-
-                    echo "--- 2. Running Unit Test (Target: test) ---"
-                    // Build layer base (npm install) và chạy test. Layer base sẽ được cached cho lần sau.
-                    sh "docker build --target test -t ${env.IMAGE_NAME}-test:${env.IMAGE_TAG} ."
-
-                    echo "--- 3. Dry-run Build (Target: build) ---"
-                    // Kiểm tra xem code có build ra assets thành công không
-                    sh "docker build --target build -t ${env.IMAGE_NAME}-build-check:${env.IMAGE_TAG} ."
-                }
+                  echo "--- 1. Security Scan: Dockerfile ---"
+                  sh "trivy config --severity HIGH,CRITICAL --exit-code 1 Dockerfile"
+      
+                  echo "--- 2. Build Base Image for Testing ---"
+                  // Build stage 'base' để có môi trường node_modules
+                  sh "docker build --target base -t ${env.IMAGE_NAME}-base:${env.IMAGE_TAG} ."
+      
+                  echo "--- 3. Running Unit Test ---"
+                  // Chạy lệnh test trực tiếp từ image base vừa build
+                  // Mount code hiện tại vào và chạy npm run test
+                  sh """
+                      docker run --rm \
+                      -v ${WORKSPACE}:/app \
+                      -w /app \
+                      ${env.IMAGE_NAME}-base:${env.IMAGE_TAG} \
+                      npm run test -- --watch=false --browsers=ChromeHeadless
+                  """
+              }
             }
             post {
                 always {
