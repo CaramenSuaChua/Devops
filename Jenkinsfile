@@ -91,7 +91,7 @@ pipeline {
                     def buildTimestamp = new Date().format("yyyyMMddHHmmss")
 
                     withCredentials([aws(credentialsId: "${env.AWS_CREDS_ID}", secretKeyVariable: 'AWS_SECRET_KEY', accessKeyVariable: 'AWS_ACCESS_KEY')]) {
-                        sh '''
+                        sh """
                             aws configure set aws_access_key_id $AWS_ACCESS_KEY --profile jenkins
                             aws configure set aws_secret_access_key $AWS_SECRET_KEY --profile jenkins
                             aws configure set default.region ''' + AWS_REGION + ''' --profile jenkins
@@ -110,7 +110,7 @@ pipeline {
                             docker push ''' + ecrTag + '''
                             
                             docker logout ''' + env.ECR_REGISTRY + '''
-                        '''
+                        """
                     }
                 }
             }
@@ -121,7 +121,7 @@ pipeline {
             steps {
                 script {
                     withCredentials([aws(credentialsId: "${env.AWS_CREDS_ID}", secretKeyVariable: 'AWS_SECRET_KEY', accessKeyVariable: 'AWS_ACCESS_KEY')]) {
-                        sh '''
+                        sh """
                             export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY
                             export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_KEY
                             export AWS_DEFAULT_REGION=''' + AWS_REGION + '''
@@ -137,7 +137,7 @@ pipeline {
                                 --docker-password=$TOKEN \
                                 --namespace ecommerce \
                                 --validate=false
-                        '''
+                        """
                     }
                 }
             }
