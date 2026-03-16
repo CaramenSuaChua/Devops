@@ -80,10 +80,9 @@ pipeline {
 
         // --- GIAI ĐOẠN BUILD & DEPLOY KHI MERGE (ACTION == CLOSED) ---
         stage ("Build & Push to ECR") {
-            when { expression { env.action == 'closed' } }
-            // when { 
-            //     expression { env.action == 'opened' || env.action == 'synchronize' } 
-            // }
+            when { 
+                expression { env.action == 'opened' || env.action == 'synchronize' } 
+            }
             steps {
                 script {
                     def ecrRepo = "${env.ECR_REGISTRY}/${env.AWS_ECR_REPO_NAME}"
@@ -91,53 +90,50 @@ pipeline {
                     def buildTimestamp = new Date().format("yyyyMMddHHmmss")
 
                     withCredentials([aws(credentialsId: "${env.AWS_CREDS_ID}", secretKeyVariable: 'AWS_SECRET_KEY', accessKeyVariable: 'AWS_ACCESS_KEY')]) {
-                        sh """
+                        // Dùng nháy đơn để bảo vệ biến Shell ($AWS_ACCESS_KEY)
+                        sh '''
                             aws configure set aws_access_key_id $AWS_ACCESS_KEY --profile jenkins
                             aws configure set aws_secret_access_key $AWS_SECRET_KEY --profile jenkins
-                            aws configure set default.region ''' + AWS_REGION + ''' --profile jenkins
+                            aws configure set default.region ''' + env.AWS_REGION + ''' --profile jenkins
         
-                            # Login ECR
-                            aws ecr get-login-password --region ''' + AWS_REGION + ''' --profile jenkins | docker login --username AWS --password-stdin ''' + env.ECR_REGISTRY + '''
+                            aws ecr get-login-password --region ''' + env.AWS_REGION + ''' --profile jenkins | docker login --username AWS --password-stdin ''' + env.ECR_REGISTRY + '''
         
-                            echo "--- Fast Build: Target Production (Uses Cache) ---"
-                            # Docker sẽ tự dùng cache từ stage 'base' đã chạy ở PR
-                            # Bỏ qua hoàn toàn stage 'test' để tiết kiệm thời gian
-                            docker build --cache-from ${env.IMAGE_NAME}-base:${env.IMAGE_TAG} --target production --build-arg BUILD_DATE=''' + buildTimestamp + ''' -t ''' + ecrTag + ''' .
-
-                            
+                            echo "--- Fast Build: Target Production ---"
+                            docker build --target production --build-arg BUILD_DATE=''' + buildTimestamp + ''' -t ''' + ecrTag + ''' .
         
-                            echo "--- Pushing Frontend Image to ECR ---"
                             docker push ''' + ecrTag + '''
-                            
                             docker logout ''' + env.ECR_REGISTRY + '''
-                        """
+                        '''
                     }
                 }
             }
         }
 
         stage('Setup ECR Secret for K8s') {
-            when { expression { env.action == 'closed' } }
+            when { 
+                expression { env.action == 'opened' || env.action == 'synchronize' } 
+            }
             steps {
                 script {
                     withCredentials([aws(credentialsId: "${env.AWS_CREDS_ID}", secretKeyVariable: 'AWS_SECRET_KEY', accessKeyVariable: 'AWS_ACCESS_KEY')]) {
-                        sh """
+                        sh '''
                             export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY
                             export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_KEY
-                            export AWS_DEFAULT_REGION=''' + AWS_REGION + '''
+                            export AWS_DEFAULT_REGION=''' + env.AWS_REGION + '''
         
-                            TOKEN=$(aws ecr get-login-password --region ''' + AWS_REGION + ''')
+                            # Sử dụng dấu \ trước biến $TOKEN để Jenkins không can thiệp vào
+                            TOKEN=$(aws ecr get-login-password --region ''' + env.AWS_REGION + ''')
                             export KUBECONFIG=/var/lib/jenkins/.kube/config
         
                             kubectl delete secret ecr-registry-helper -n ecommerce --ignore-not-found=true
                             
                             kubectl create secret docker-registry ecr-registry-helper \
-                                --docker-server=''' + ECR_REGISTRY + ''' \
+                                --docker-server=''' + env.ECR_REGISTRY + ''' \
                                 --docker-username=AWS \
                                 --docker-password=$TOKEN \
                                 --namespace ecommerce \
                                 --validate=false
-                        """
+                        '''
                     }
                 }
             }
