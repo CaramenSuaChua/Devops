@@ -24,7 +24,6 @@ RUN npm run build -- --configuration production
 FROM nginx:alpine AS production
 ARG BUILD_DATE
 
-# 1. Gộp lệnh thiết lập Timezone và Phân quyền cho Nginx chạy non-root
 # Nginx cần quyền ghi vào các thư mục cache và pid
 RUN echo "Build Time: $BUILD_DATE" > /usr/share/nginx/html/build_info.txt && \
     apk add --no-cache tzdata && \
@@ -38,7 +37,6 @@ RUN echo "Build Time: $BUILD_DATE" > /usr/share/nginx/html/build_info.txt && \
     touch /var/run/nginx.pid && \
     chown -R nginx:nginx /var/run/nginx.pid
 
-# 2. Copy code đã build
 COPY --from=build /app/dist/angular-ecommerce /usr/share/nginx/html
 
 # 3. Chuyển sang user nginx (user này có sẵn trong image nginx:alpine)
