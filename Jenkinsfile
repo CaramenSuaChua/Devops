@@ -31,7 +31,9 @@ pipeline {
         }
 
         stage('PR Validation (Test & Scan)') {
-            when { expression { env.action == 'opened' || env.action == 'synchronize' } }
+            when { 
+                expression { env.action == 'opened' || env.action == 'synchronize' } 
+            }
             steps {
                 script {
                     sh "trivy config --severity HIGH,CRITICAL --exit-code 1 Dockerfile"
@@ -46,7 +48,9 @@ pipeline {
         }
 
         stage('Code Quality (SonarQube)') {
-            when { expression { env.action == 'opened' || env.action == 'synchronize' } }
+            when { 
+                expression { env.action == 'opened' || env.action == 'synchronize' } 
+            }
             steps {
                 script {
                     def scannerHome = tool 'sonar-scanner'
@@ -58,7 +62,9 @@ pipeline {
         }
 
         stage ("Build & Push to ECR") {
-            when { expression { env.action == 'opened' || env.action == 'synchronize' } }
+            when {
+                expression { env.action == 'closed'}
+            }
             steps {
                 script {
                     def ecrTag = "${env.ECR_REGISTRY}/${env.AWS_ECR_REPO_NAME}:${env.IMAGE_TAG}"
@@ -84,7 +90,9 @@ pipeline {
         }
 
         stage('Setup ECR Secret for K8s') {
-            when { expression { env.action == 'opened' || env.action == 'synchronize' } }
+            when {
+                expression { env.action == 'closed'}
+            }
             steps {
                 script {
                     withCredentials([aws(credentialsId: "${env.AWS_CREDS_ID}", secretKeyVariable: 'AWS_SECRET_KEY', accessKeyVariable: 'AWS_ACCESS_KEY')]) {
@@ -112,7 +120,9 @@ pipeline {
         }
 
         stage('Update GitOps Manifest') {
-            when { expression { env.action == 'opened' || env.action == 'synchronize' } }
+            when {
+                expression { env.action == 'closed'}
+            }
             steps {
                 script {
                     sh "rm -rf ecommerce-gitops"
