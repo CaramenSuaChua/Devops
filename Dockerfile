@@ -1,11 +1,13 @@
 
 
 
+
+
 # --- Stage 1: Base ---
 FROM node:18-alpine AS base
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm install --force
+RUN npm ci --force
 
 # FROM base AS test
 # COPY . .
