@@ -8,13 +8,18 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --force
 
-# --- Stage 2: Build ---
+FROM base AS test
+COPY . .
+# Stage này dùng để chạy test trong Jenkins
+RUN npm run test -- --watch=false --browsers=ChromeHeadless
+
+# --- Stage 3: Build ---
 FROM base AS build
 COPY --from=base /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+RUN npm run build -- --configuration production
 
-# --- Stage 3: Production ---
+# --- Stage 4: Production ---
 FROM nginx:alpine AS production
 ARG BUILD_DATE
 
