@@ -30,32 +30,35 @@ pipeline {
             }
         }
 
-        stage('PR Validation (Test & Scan)') {
+        stage('PR Verification') {
             when { 
                 expression { env.action == 'opened' || env.action == 'synchronize' } 
             }
-            steps {
-                script {
-                    sh "trivy config --severity HIGH,CRITICAL --exit-code 1 Dockerfile"
-                    sh "docker build --target build -t ${env.IMAGE_NAME}-build-check:${env.IMAGE_TAG} . "
+            parallel {
+                stage('PR Validation (Scan & Dry-run)') {
+                    steps {
+                        script {
+                            echo "--- Running Trivy and Docker Build Check ---"
+                            sh "trivy config --severity HIGH,CRITICAL --exit-code 1 Dockerfile"
+                            sh "docker build --target build -t ${env.IMAGE_NAME}-build-check:${env.IMAGE_TAG} . "
+                        }
+                    }
+                    post {
+                        always {
+                            sh "docker rmi ${env.IMAGE_NAME}-build-check:${env.IMAGE_TAG} || true"
+                        }
+                    }
                 }
-            }
-            post {
-                always {
-                    sh "docker rmi ${env.IMAGE_NAME}-build-check:${env.IMAGE_TAG} || true"
-                }
-            }
-        }
 
-        stage('Code Quality (SonarQube)') {
-            when { 
-                expression { env.action == 'opened' || env.action == 'synchronize' } 
-            }
-            steps {
-                script {
-                    def scannerHome = tool 'sonar-scanner'
-                    withSonarQubeEnv("${env.SONAR_SERVER_NAME}") {
-                        sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=Ecommerce-Frontend"
+                stage('Code Quality (SonarQube)') {
+                    steps {
+                        script {
+                            echo "--- Running SonarScan ---"
+                            def scannerHome = tool 'sonar-scanner'
+                            withSonarQubeEnv("${env.SONAR_SERVER_NAME}") {
+                                sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=Ecommerce-Frontend"
+                            }
+                        }
                     }
                 }
             }
