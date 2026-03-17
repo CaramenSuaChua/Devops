@@ -30,35 +30,44 @@ pipeline {
             }
         }
 
-        stage('PR Validation (Test & Scan)') {
-            when { expression { env.action == 'opened' || env.action == 'synchronize' } }
-            steps {
-                script {
-                    sh "trivy config --severity HIGH,CRITICAL --exit-code 1 Dockerfile"
-                    sh "docker build --target build -t ${env.IMAGE_NAME}-build-check:${env.IMAGE_TAG} . "
-                }
+        stage('PR Verification') {
+            when { 
+                expression { env.action == 'opened' || env.action == 'synchronize' } 
             }
-            post {
-                always {
-                    sh "docker rmi ${env.IMAGE_NAME}-build-check:${env.IMAGE_TAG} || true"
+            parallel {
+                stage('PR Validation (Scan & Dry-run)') {
+                    steps {
+                        script {
+                            echo "--- Running Trivy and Docker Build Check ---"
+                            sh "trivy config --severity HIGH,CRITICAL --exit-code 1 Dockerfile"
+                            sh "docker build --target build -t ${env.IMAGE_NAME}-build-check:${env.IMAGE_TAG} . "
+                        }
+                    }
+                    post {
+                        always {
+                            sh "docker rmi ${env.IMAGE_NAME}-build-check:${env.IMAGE_TAG} || true"
+                        }
+                    }
                 }
-            }
-        }
 
-        stage('Code Quality (SonarQube)') {
-            when { expression { env.action == 'opened' || env.action == 'synchronize' } }
-            steps {
-                script {
-                    def scannerHome = tool 'sonar-scanner'
-                    withSonarQubeEnv("${env.SONAR_SERVER_NAME}") {
-                        sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=Ecommerce-Frontend"
+                stage('Code Quality (SonarQube)') {
+                    steps {
+                        script {
+                            echo "--- Running SonarScan ---"
+                            def scannerHome = tool 'sonar-scanner'
+                            withSonarQubeEnv("${env.SONAR_SERVER_NAME}") {
+                                sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=Ecommerce-Frontend"
+                            }
+                        }
                     }
                 }
             }
         }
 
         stage ("Build & Push to ECR") {
-            when { expression { env.action == 'opened' || env.action == 'synchronize' } }
+            when {
+                expression { env.action == 'closed'}
+            }
             steps {
                 script {
                     def ecrTag = "${env.ECR_REGISTRY}/${env.AWS_ECR_REPO_NAME}:${env.IMAGE_TAG}"
@@ -84,7 +93,9 @@ pipeline {
         }
 
         stage('Setup ECR Secret for K8s') {
-            when { expression { env.action == 'opened' || env.action == 'synchronize' } }
+            when {
+                expression { env.action == 'closed'}
+            }
             steps {
                 script {
                     withCredentials([aws(credentialsId: "${env.AWS_CREDS_ID}", secretKeyVariable: 'AWS_SECRET_KEY', accessKeyVariable: 'AWS_ACCESS_KEY')]) {
@@ -112,7 +123,9 @@ pipeline {
         }
 
         stage('Update GitOps Manifest') {
-            when { expression { env.action == 'opened' || env.action == 'synchronize' } }
+            when {
+                expression { env.action == 'closed'}
+            }
             steps {
                 script {
                     sh "rm -rf ecommerce-gitops"
