@@ -31,9 +31,9 @@ pipeline {
         }
 
         stage('PR Verification') {
-            when { 
-                expression { env.action == 'opened' || env.action == 'synchronize' } 
-            }
+            // when { 
+            //     expression { env.action == 'opened' || env.action == 'synchronize' } 
+            // }
             parallel {
                 stage('PR Validation (Scan & Dry-run)') {
                     steps {
@@ -65,9 +65,9 @@ pipeline {
         }
 
         stage ("Build & Push to ECR") {
-            when {
-                expression { env.action == 'closed'}
-            }
+            // when {
+            //     expression { env.action == 'closed'}
+            // }
             steps {
                 script {
                     def ecrTag = "${env.ECR_REGISTRY}/${env.AWS_ECR_REPO_NAME}:${env.IMAGE_TAG}"
@@ -93,9 +93,9 @@ pipeline {
         }
 
         stage('Setup ECR Secret for K8s') {
-            when {
-                expression { env.action == 'closed'}
-            }
+            // when {
+            //     expression { env.action == 'closed'}
+            // }
             steps {
                 script {
                     withCredentials([aws(credentialsId: "${env.AWS_CREDS_ID}", secretKeyVariable: 'AWS_SECRET_KEY', accessKeyVariable: 'AWS_ACCESS_KEY')]) {
@@ -123,9 +123,9 @@ pipeline {
         }
 
         stage('Update GitOps Manifest') {
-            when {
-                expression { env.action == 'closed'}
-            }
+            // when {
+            //     expression { env.action == 'closed'}
+            // }
             steps {
                 script {
                     sh "rm -rf ecommerce-gitops"
